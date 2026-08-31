@@ -9,6 +9,53 @@
   let score = 0, arrested = 0, gameOver = false, won = false;
   let enemies = [], enemyBullets = [], taserLines = [], decorations = [], flashes = [];
   const held = {};
+  let hurtFlashUntil = 0;
+
+  const SFX_V = "1";
+  const audio = {
+    unlocked: false,
+    cache: {},
+    load(name) {
+      if (this.cache[name]) return this.cache[name];
+      const a = new Audio("assets/sfx/" + name + "?v=" + SFX_V);
+      a.preload = "auto";
+      this.cache[name] = a;
+      return a;
+    },
+    play(name, vol = 0.7) {
+      try {
+        const base = this.load(name);
+        const a = base.cloneNode();
+        a.volume = vol;
+        const p = a.play();
+        if (p && p.catch) p.catch(() => {});
+      } catch (_) {}
+    },
+    playRandom(names, vol = 0.7) {
+      if (!names.length) return;
+      this.play(names[Math.floor(Math.random() * names.length)], vol);
+    },
+    unlock() {
+      if (this.unlocked) return;
+      this.unlocked = true;
+      // warm a few buffers
+      ["taser_buzz.wav", "reload.wav", "arrest.mp3"].forEach(n => this.load(n));
+    }
+  };
+  const VOICE_TAUNT = ["surrender.mp3", "where_run.mp3", "sausage.mp3", "freeze.mp3", "hands_up.mp3", "gotcha.mp3"];
+  const VOICE_ZAP = ["zap_1.mp3", "zap_2.mp3", "zap_3.mp3", "zap_4.mp3", "zap_5.mp3"];
+  const VOICE_HIT = ["hit_aiy.mp3", "hit_oy.mp3", "hit_pagaat.mp3", "hit_ouch.mp3", "hit_aahh.mp3", "hit_lama.mp3"];
+  const HURT_WAV = ["hurt_1.wav", "hurt_2.wav", "hurt_3.wav", "hurt_4.wav", "hurt_5.wav", "hurt_6.wav"];
+
+  function flashHurt() {
+    hurtFlashUntil = performance.now() + 320;
+    const el = document.getElementById("hurtVignette");
+    if (el) {
+      el.classList.add("on");
+      clearTimeout(flashHurt._t);
+      flashHurt._t = setTimeout(() => el.classList.remove("on"), 320);
+    }
+  }
 
   const player = {
     x: 100, y: 350, radius: 18, footR: 11, speed: 2.1,
@@ -190,7 +237,7 @@
     return entity.y + 10;
   }
 
-  const ASSET_V = "ff15";
+  const ASSET_V = "ff16";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -251,7 +298,8 @@
   }
 
   function blocked(x, y, r) {
-    if (x < r || y < r || x > width - r || y > height - r) return true;
+    const topPad = 88; // reserved HUD row
+    if (x < r || y < r + topPad || x > width - r || y > height - r) return true;
     for (const wall of walkWallHitboxes()) if (circleRectCollision(x, y, r, wall)) return true;
     for (const d of decorations) {
       if (!d.solid) continue;
@@ -530,6 +578,9 @@
       if (Math.hypot(b.x - player.x, b.y - player.y) < b.radius + player.radius) {
         enemyBullets.splice(i, 1);
         player.health = Math.max(0, player.health - 10);
+        flashHurt();
+        audio.playRandom(HURT_WAV, 0.55);
+        audio.playRandom(VOICE_HIT, 0.85);
         updateHUD();
         setMessage("💥 נפגעת מכדור! ‎-10 חיים");
         if (player.health <= 0) {
@@ -611,6 +662,9 @@
       main: bolt.main, branches: bolt.branches,
       life: 14, target
     });
+    audio.play("taser_buzz.wav", 0.75);
+    audio.playRandom(VOICE_ZAP, 0.9);
+    if (Math.random() < 0.45) setTimeout(() => audio.playRandom(VOICE_TAUNT, 0.85), 280);
     score += 25;
     updateHUD();
     setMessage(player.ammo > 0 ? "⚡ נוטרל! עכשיו R לטעינה" : "⚡ ירייה אחרונה — מצא מחסנית");
@@ -623,6 +677,7 @@
     player.reloading = true;
     player.reloadStart = performance.now();
     player.reloadEnd = player.reloadStart + 500;
+    audio.play("reload.wav", 0.7);
     updateHUD();
     setMessage("🔄 טוען מחדש...");
   }
@@ -649,6 +704,8 @@
         e.state = "arrested";
         arrested++;
         score += 100;
+        audio.play("arrest.mp3", 0.95);
+        if (Math.random() < 0.5) setTimeout(() => audio.playRandom(VOICE_TAUNT, 0.8), 500);
         updateHUD();
         setMessage(arrested === enemies.length
           ? "🏆 כל הכבוד!"
@@ -674,6 +731,7 @@
       document.getElementById("reloadBar").style.width = "0%";
       score += 50;
       updateHUD();
+      audio.play("ammo_pickup.wav", 0.8);
       setMessage("🔋 מחסנית! 5 יריות זמינות");
       placePickup();
     }
@@ -686,6 +744,7 @@
       player.health = Math.min(100, player.health + 40);
       score += 30;
       updateHUD();
+      audio.play("health_pickup.wav", 0.8);
       setMessage(player.health > before ? "❤️ תיבת בריאות! +" + (player.health - before) + " חיים" : "❤️ כבר מלא בחיים");
       placeHealthBox();
     }
@@ -964,7 +1023,7 @@
   function drawMinimap() {
     const mw = minimap.width, mh = minimap.height;
     mctx.clearRect(0, 0, mw, mh);
-    mctx.fillStyle = "#1a2a1a";
+    mctx.fillStyle = "rgba(26, 42, 26, 0.35)";
     mctx.fillRect(0, 0, mw, mh);
     const sx = mw / width, sy = mh / height;
     mctx.fillStyle = "#5a6570";
@@ -1056,7 +1115,7 @@
 
   function restartGame() {
     player.x = 110;
-    player.y = height * 0.55;
+    player.y = Math.max(height * 0.55, 140);
     player.health = 100;
     player.ammo = 5;
     player.ready = true;
@@ -1090,12 +1149,14 @@
   });
 
   addEventListener("keydown", e => {
+    audio.unlock();
     held[e.code] = true;
     if (e.code === "Space") { e.preventDefault(); useTaser(); }
     if (e.code === "KeyE") arrestEnemy();
     if (e.code === "KeyR") reloadTaser();
   });
   addEventListener("keyup", e => { held[e.code] = false; });
+  addEventListener("pointerdown", () => audio.unlock(), { once: true });
 
   function bindMove(id, code) {
     const b = document.getElementById(id);

@@ -5,37 +5,42 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>מבצע בסיס</title>
-<link rel="stylesheet" href="style.css?v=ff15">
+<link rel="stylesheet" href="style.css?v=ff16">
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="hurtVignette"></div>
 
-<div id="hudTopLeft" class="panel hud-player">
-  <img id="portrait" src="assets/sprites/player_portrait.png" alt="">
-  <div class="hud-player-stats">
-    <div class="row"><span class="lbl">חיים</span><div class="bar"><div id="healthBar"></div></div><span id="health">100</span></div>
-    <div class="row bolts" id="ammoBolts" title="יריות"></div>
-    <div class="row small">מחסנית <b id="ammo">5</b>/5 · <span id="reloadState">מוכן</span></div>
-    <div class="row small">עצורים <b id="arrested">0</b>/<span id="enemyTotal">0</span> · ניקוד <b id="score">0</b></div>
-    <div id="reloadBarWrap"><div id="reloadBar"></div></div>
+<div id="hudTop">
+  <div class="hud-player">
+    <img id="portrait" src="assets/sprites/player_portrait.png" alt="">
+    <div class="hud-player-stats">
+      <div class="row"><span class="lbl">חיים</span><div class="bar"><div id="healthBar"></div></div><span id="health">100</span></div>
+      <div class="row bolts" id="ammoBolts" title="יריות"></div>
+      <div class="row small">מחסנית <b id="ammo">5</b>/5 · <span id="reloadState">מוכן</span></div>
+      <div id="reloadBarWrap"><div id="reloadBar"></div></div>
+    </div>
+  </div>
+  <div class="hud-meta">
+    <span>עצורים <b id="arrested">0</b>/<span id="enemyTotal">0</span></span>
+    <span>ניקוד <b id="score">0</b></span>
+  </div>
+  <div class="hud-side">
+    <canvas id="minimap" width="120" height="120"></canvas>
+    <div class="hud-right-btns">
+      <button id="helpBtn" class="btn blue" type="button">❓ עזרה</button>
+      <button id="restart" class="btn yellow" type="button">🔄 משחק חדש</button>
+    </div>
   </div>
 </div>
 
-<div id="message" class="panel">טוען...</div>
+<div id="message">טוען...</div>
 
 <div id="winBanner">
   <div id="winBox">כל הכבוד<br>עצרת את כולם</div>
 </div>
 
-<div id="hudTopRight" class="hud-right">
-  <canvas id="minimap" width="120" height="120"></canvas>
-  <div class="hud-right-btns">
-    <button id="helpBtn" class="btn blue" type="button">❓ עזרה</button>
-    <button id="restart" class="btn yellow" type="button">🔄 משחק חדש</button>
-  </div>
-</div>
-
-<div id="help" class="panel">
+<div id="help">
   <b>שליטה</b><br>
   תנועה: WASD / חצים<br>
   ⚡ טייזר: Space<br>
@@ -57,6 +62,6 @@
   <button class="mobile" id="reload" type="button">R<br>טעינה</button>
 </div>
 
-<script src="game.js?v=ff15"></script>
+<script src="game.js?v=ff16"></script>
 </body>
 </html>
