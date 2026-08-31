@@ -11,7 +11,7 @@
   const held = {};
   let hurtFlashUntil = 0;
 
-  const SFX_V = "3";
+  const SFX_V = "4";
   const audio = {
     unlocked: false,
     cache: {},
@@ -246,7 +246,7 @@
     return entity.y + 10;
   }
 
-  const ASSET_V = "ff21";
+  const ASSET_V = "ff22";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -596,6 +596,7 @@
         if (player.health <= 0) {
           gameOver = true;
           showLoseBanner(true);
+          audio.play("shit_died.mp3", 1);
           setMessage("💀 לחץ משחק חדש");
         }
       }
