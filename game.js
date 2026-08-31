@@ -11,7 +11,7 @@
   const held = {};
 
   const player = {
-    x: 100, y: 350, radius: 20, speed: 2.1,
+    x: 100, y: 350, radius: 18, footR: 11, speed: 2.1,
     health: 100, ammo: 5, maxAmmo: 5,
     ready: true, reloading: false, reloadStart: 0, reloadEnd: 0,
     facing: "down", moving: false
@@ -161,20 +161,36 @@
     return walls.map(w => ({ x: w.x * width, y: w.y * height, w: w.w * width, h: w.h * height }));
   }
 
-  // Collision boxes match the visible concrete (sprites are thicker than the thin layout rects)
+  // Bullets / taser use slightly padded walls so shots don't slip seams
   function wallHitboxes() {
     return pxWalls().map(w => {
       const horizontal = w.w >= w.h;
       if (horizontal) {
-        const padY = Math.max(14, w.h * 0.9);
-        return { x: w.x - 4, y: w.y - padY * 0.35, w: w.w + 8, h: w.h + padY };
+        const padY = Math.max(8, w.h * 0.45);
+        return { x: w.x - 2, y: w.y - padY * 0.25, w: w.w + 4, h: w.h + padY };
       }
-      const padX = Math.max(16, w.w * 1.1);
-      return { x: w.x - padX * 0.5, y: w.y - 4, w: w.w + padX, h: w.h + 8 };
+      const padX = Math.max(8, w.w * 0.55);
+      return { x: w.x - padX * 0.4, y: w.y - 2, w: w.w + padX, h: w.h + 4 };
     });
   }
 
-  const ASSET_V = "ff14";
+  // Walking uses the visible wall footprint only — matches the gap you see on screen
+  function walkWallHitboxes() {
+    return pxWalls().map(w => {
+      const horizontal = w.w >= w.h;
+      if (horizontal) {
+        return { x: w.x, y: w.y - w.h * 0.1, w: w.w, h: w.h * 1.25 };
+      }
+      return { x: w.x - w.w * 0.1, y: w.y, w: w.w * 1.25, h: w.h };
+    });
+  }
+
+  // Entity x/y is sprite center; feet / shadow sit a bit lower
+  function footY(entity) {
+    return entity.y + 10;
+  }
+
+  const ASSET_V = "ff15";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -236,10 +252,11 @@
 
   function blocked(x, y, r) {
     if (x < r || y < r || x > width - r || y > height - r) return true;
-    for (const wall of wallHitboxes()) if (circleRectCollision(x, y, r, wall)) return true;
+    for (const wall of walkWallHitboxes()) if (circleRectCollision(x, y, r, wall)) return true;
     for (const d of decorations) {
       if (!d.solid) continue;
-      const rect = { x: d.x - d.w * 0.38, y: d.y - d.h * 0.15, w: d.w * 0.76, h: d.h * 0.55 };
+      // solid near the prop's ground contact, not the full tall art
+      const rect = { x: d.x - d.w * 0.28, y: d.y + d.h * 0.05, w: d.w * 0.56, h: d.h * 0.35 };
       if (circleRectCollision(x, y, r, rect)) return true;
     }
     return false;
@@ -361,7 +378,7 @@
       const p = randomFreePosition(22);
       const bias = (i / 6) * Math.PI * 2 + Math.random() * 0.7;
       enemies.push({
-        x: p.x, y: p.y, radius: 18,
+        x: p.x, y: p.y, radius: 18, footR: 10,
         speed: 0.28 + Math.random() * 0.22,
         state: "active", stunUntil: 0,
         shootCooldown: 40 + Math.floor(Math.random() * 70),
@@ -397,7 +414,7 @@
     ty = Math.max(40, Math.min(height - 40, ty));
     // nudge until free-ish
     for (let i = 0; i < 12; i++) {
-      if (!blocked(tx, ty, e.radius + 2)) break;
+      if (!blocked(tx, footY(e), e.footR)) break;
       tx = 60 + Math.random() * (width - 120);
       ty = 60 + Math.random() * (height - 120);
     }
@@ -428,17 +445,16 @@
     return { dx, dy };
   }
 
-  function moveEntity(entity, dx, dy, speed, r) {
+  function moveEntity(entity, dx, dy, speed, footR) {
     const len = Math.hypot(dx, dy);
     if (!len) return;
     const mx = dx / len * speed, my = dy / len * speed;
-    const hitR = r + 4; // slightly fatter so they can't squeeze through walls
-    if (!blocked(entity.x + mx, entity.y, hitR)) entity.x += mx;
-    if (!blocked(entity.x, entity.y + my, hitR)) entity.y += my;
-    // if somehow inside a wall, push out
-    if (blocked(entity.x, entity.y, hitR)) {
-      for (const step of [[8, 0], [-8, 0], [0, 8], [0, -8], [12, 12], [-12, -12], [12, -12], [-12, 12]]) {
-        if (!blocked(entity.x + step[0], entity.y + step[1], hitR)) {
+    // Passage = foot-shadow circle only (not full body / fat wall pads)
+    if (!blocked(entity.x + mx, footY(entity), footR)) entity.x += mx;
+    if (!blocked(entity.x, footY(entity) + my, footR)) entity.y += my;
+    if (blocked(entity.x, footY(entity), footR)) {
+      for (const step of [[6, 0], [-6, 0], [0, 6], [0, -6], [5, 5], [-5, 5], [5, -5], [-5, -5]]) {
+        if (!blocked(entity.x + step[0], footY(entity) + step[1], footR)) {
           entity.x += step[0];
           entity.y += step[1];
           break;
@@ -456,7 +472,7 @@
     if (held.KeyD || held.ArrowRight) dx++;
     player.moving = !!(dx || dy);
     if (player.moving) player.facing = facingFromDelta(dx, dy);
-    moveEntity(player, dx, dy, player.speed, player.radius);
+    moveEntity(player, dx, dy, player.speed, player.footR);
   }
 
   function lineHitsWall(x1, y1, x2, y2) {
@@ -494,7 +510,7 @@
       const dx = steer.dx, dy = steer.dy;
       const dPlayer = Math.hypot(player.x - e.x, player.y - e.y);
       e.facing = facingFromDelta(player.x - e.x, player.y - e.y);
-      if (dPlayer > 90) moveEntity(e, dx, dy, e.speed, e.radius);
+      if (dPlayer > 90) moveEntity(e, dx, dy, e.speed, e.footR);
       e.shootCooldown--;
       if (dPlayer < 280 && dPlayer > 70 && e.shootCooldown <= 0 && !lineHitsWall(e.x, e.y, player.x, player.y)) {
         enemyShoot(e);
@@ -755,7 +771,18 @@
     return true;
   }
 
+  function drawFootOval(x, y) {
+    // Same kind of light base circle enemies already have under their boots
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
+    ctx.beginPath();
+    ctx.ellipse(x, footY({ y }), 14, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawPlayer() {
+    drawFootOval(player.x, player.y);
     const img = assets.player[player.facing] || assets.player.down;
     drawSpriteCentered(img, player.x, player.y, 58);
   }
