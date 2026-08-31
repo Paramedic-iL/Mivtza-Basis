@@ -33,8 +33,10 @@
     taserMagazine: null,
     medkit: null,
     ground: null,
-    wall: null,
-    container: null
+    wallH: null,
+    wallV: null,
+    wallL: null,
+    wallBlock: null
   };
 
   function pxWalls() {
@@ -77,9 +79,11 @@
     const spr = manifest.sprites || {};
     assets.taserMagazine = await loadImage(spr.taser_magazine || "assets/sprites/taser_magazine.png");
     assets.medkit = await loadImage(spr.medkit || "assets/sprites/medkit.png");
-    assets.ground = await loadImage(spr.ground_grass);
-    assets.wall = await loadImage(spr.wall_h);
-    assets.container = await loadImage(spr.container);
+    assets.ground = await loadImage(spr.cartoon_grass || "assets/sprites/cartoon_grass.png");
+    assets.wallH = await loadImage(spr.wall_concrete_h || "assets/sprites/wall_concrete_h.png");
+    assets.wallV = await loadImage(spr.wall_concrete_v || "assets/sprites/wall_concrete_v.png");
+    assets.wallL = await loadImage(spr.wall_concrete_l || "assets/sprites/wall_concrete_l.png");
+    assets.wallBlock = await loadImage(spr.wall_concrete_block || "assets/sprites/wall_concrete_block.png");
 
     assets.enemies = [];
     for (const src of (manifest.enemies || [])) {
@@ -87,9 +91,16 @@
       if (img) assets.enemies.push(img);
     }
 
+    // Decorations: new obstacle set, skip concrete wall pieces (used by wall system)
     assets.mapObjects = [];
+    const wallSkip = new Set([
+      "assets/sprites/obstacles/obs_01.png",
+      "assets/sprites/obstacles/obs_02.png",
+      "assets/sprites/obstacles/obs_03.png",
+      "assets/sprites/obstacles/obs_04.png"
+    ]);
     const objs = (manifest.obstacles && manifest.obstacles.length)
-      ? manifest.obstacles
+      ? manifest.obstacles.filter(s => !wallSkip.has(s))
       : (manifest.mapObjects || []).slice(0, 24);
     const loaded = await Promise.all(objs.map(loadImage));
     for (const img of loaded) {
@@ -387,59 +398,39 @@
   }
 
   function drawGround() {
-    // Solid grass base — sheet ground crops often include labels/UI, so keep simple.
-    ctx.fillStyle = "#5f7f45";
-    ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = "rgba(0,0,0,.08)";
-    for (let x = 0; x < width; x += 64) {
-      for (let y = 0; y < height; y += 64) {
-        if (((x / 64) + (y / 64)) % 2 === 0) ctx.fillRect(x, y, 64, 64);
-      }
-    }
-    ctx.strokeStyle = "rgba(255,255,255,.05)";
-    for (let x = 0; x < width; x += 50) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
-    }
-    for (let y = 0; y < height; y += 50) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-    }
-  }
-
-  function drawDecorations() {
-    for (const d of decorations) {
-      ctx.globalAlpha = 0.92;
-      ctx.drawImage(d.img, d.x - d.w / 2, d.y - d.h / 2, d.w, d.h);
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  function drawWalls() {
-    for (const w of pxWalls()) {
-      if (assets.wall) {
-        // tile wall sprite into rect
-        const tw = Math.max(24, Math.min(w.w, assets.wall.width));
-        const th = Math.max(24, Math.min(w.h, assets.wall.height));
-        for (let x = w.x; x < w.x + w.w; x += tw) {
-          for (let y = w.y; y < w.y + w.h; y += th) {
-            const dw = Math.min(tw, w.x + w.w - x);
-            const dh = Math.min(th, w.y + w.h - y);
-            ctx.drawImage(assets.wall, 0, 0, dw, dh, x, y, dw, dh);
-          }
+    if (assets.ground) {
+      const tile = 160;
+      for (let x = 0; x < width; x += tile) {
+        for (let y = 0; y < height; y += tile) {
+          ctx.drawImage(assets.ground, x, y, tile + 1, tile + 1);
         }
-      } else {
-        ctx.fillStyle = "#303842";
-        ctx.fillRect(w.x, w.y, w.w, w.h);
       }
-      ctx.strokeStyle = "#71808d";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(w.x, w.y, w.w, w.h);
+    } else {
+      ctx.fillStyle = "#5f7f45";
+      ctx.fillRect(0, 0, width, height);
     }
+  }
+
+  function drawWallSprite(w) {
+    const horizontal = w.w >= w.h;
+    const img = horizontal
+      ? (assets.wallH || assets.wallBlock)
+      : (assets.wallV || assets.wallH || assets.wallBlock);
+    if (!img) {
+      ctx.fillStyle = "#6b6f76";
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+      return;
+    }
+    // Stretch concrete piece to cover the wall footprint (keeps cartoon look)
+    const pad = Math.max(6, Math.min(w.w, w.h) * 0.35);
+    ctx.drawImage(img, w.x - pad * 0.15, w.y - pad * 0.55, w.w + pad * 0.3, w.h + pad);
   }
 
   function drawMission() {
-    ctx.fillStyle = arrested === enemies.length ? "#ffd600" : "#907c2c";
+    ctx.fillStyle = arrested === enemies.length ? "rgba(255,214,0,.55)" : "rgba(144,124,44,.45)";
     ctx.fillRect(mission.x, mission.y, mission.w, mission.h);
     ctx.strokeStyle = "#ffe566";
+    ctx.lineWidth = 3;
     ctx.setLineDash([8, 6]);
     ctx.strokeRect(mission.x + 4, mission.y + 4, mission.w - 8, mission.h - 8);
     ctx.setLineDash([]);
@@ -460,7 +451,6 @@
   function drawPlayer() {
     const img = assets.player[player.facing] || assets.player.down || assets.player.up;
     if (!drawSpriteCentered(img, player.x, player.y, 56)) {
-      // fallback vector
       ctx.save();
       ctx.translate(player.x, player.y);
       ctx.fillStyle = "#326ca8";
@@ -541,17 +531,43 @@
     ctx.fillRect(pickup.x - 14, pickup.y - 10, 20, 20);
   }
 
+  // Lower on screen = drawn later = appears in front (matches 3/4 camera)
+  function drawWorldSorted() {
+    const items = [];
+
+    for (const w of pxWalls()) {
+      items.push({ footY: w.y + w.h, kind: "wall", w });
+    }
+    for (const d of decorations) {
+      items.push({ footY: d.y + d.h * 0.42, kind: "deco", d });
+    }
+    for (const e of enemies) {
+      items.push({ footY: e.y + e.radius, kind: "enemy", e });
+    }
+    if (pickup.active) {
+      items.push({ footY: pickup.y + 18, kind: "pickup" });
+    }
+    items.push({ footY: player.y + player.radius, kind: "player" });
+
+    items.sort((a, b) => a.footY - b.footY);
+
+    for (const it of items) {
+      if (it.kind === "wall") drawWallSprite(it.w);
+      else if (it.kind === "deco") {
+        ctx.drawImage(it.d.img, it.d.x - it.d.w / 2, it.d.y - it.d.h / 2, it.d.w, it.d.h);
+      } else if (it.kind === "enemy") drawEnemy(it.e);
+      else if (it.kind === "pickup") drawPickup();
+      else if (it.kind === "player") drawPlayer();
+    }
+  }
+
   function draw() {
     ctx.clearRect(0, 0, width, height);
     drawGround();
     drawMission();
-    drawDecorations();
-    drawWalls();
-    drawPickup();
-    enemies.forEach(drawEnemy);
+    drawWorldSorted();
     drawBullets();
     drawTaser();
-    drawPlayer();
     if (gameOver || won) {
       ctx.fillStyle = "rgba(0,0,0,.28)";
       ctx.fillRect(0, 0, width, height);

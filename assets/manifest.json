@@ -15,7 +15,12 @@
     "icon_cuffs": "assets/sprites/icon_cuffs.png",
     "taser_magazine": "assets/sprites/taser_magazine.png",
     "medkit": "assets/sprites/medkit.png",
-    "obstacles_sheet": "assets/sprites/obstacles_sheet.png"
+    "obstacles_sheet": "assets/sprites/obstacles_sheet.png",
+    "cartoon_grass": "assets/sprites/cartoon_grass.png",
+    "wall_concrete_h": "assets/sprites/wall_concrete_h.png",
+    "wall_concrete_v": "assets/sprites/wall_concrete_v.png",
+    "wall_concrete_l": "assets/sprites/wall_concrete_l.png",
+    "wall_concrete_block": "assets/sprites/wall_concrete_block.png"
   },
   "enemies": [
     "assets/sprites/enemy_0.png",
