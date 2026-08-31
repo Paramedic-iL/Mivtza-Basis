@@ -17,6 +17,7 @@
     facing: "down", moving: false
   };
   const pickup = { x: 0, y: 0, radius: 28, active: true };
+  const healthBox = { x: 0, y: 0, radius: 28, active: true };
 
   const walls = [
     { x: .17, y: .10, w: .05, h: .30 }, { x: .17, y: .53, w: .05, h: .31 },
@@ -33,7 +34,7 @@
     mapObjects: [],
     ground: null,
     wallH: null, wallV: null, wallBlock: null,
-    taserMagazine: null, muzzle: null, taserBolt: null, stunAura: null,
+    taserMagazine: null, medkit: null, muzzle: null, taserBolt: null, stunAura: null,
     marker: null
   };
 
@@ -71,6 +72,7 @@
 
     assets.taserMagazine = await loadImage("assets/sprites/vfx/pickup.png")
       || await loadImage("assets/sprites/taser_magazine.png");
+    assets.medkit = await loadImage("assets/sprites/medkit.png");
     assets.muzzle = await loadImage("assets/sprites/vfx/muzzle.png");
     assets.taserBolt = await loadImage("assets/sprites/vfx/taser_bolt.png");
     assets.stunAura = await loadImage("assets/sprites/vfx/stun_aura.png");
@@ -130,6 +132,17 @@
   function placePickup() {
     const p = randomFreePosition(32);
     pickup.x = p.x; pickup.y = p.y; pickup.active = true;
+  }
+
+  function placeHealthBox() {
+    const p = randomFreePosition(32);
+    // keep away from ammo pickup
+    for (let i = 0; i < 40; i++) {
+      if (Math.hypot(p.x - pickup.x, p.y - pickup.y) > 120) break;
+      const q = randomFreePosition(32);
+      p.x = q.x; p.y = q.y;
+    }
+    healthBox.x = p.x; healthBox.y = p.y; healthBox.active = true;
   }
 
   function placeDecorations() {
@@ -404,6 +417,18 @@
     }
   }
 
+  function updateHealthBox() {
+    if (!healthBox.active) return;
+    if (Math.hypot(player.x - healthBox.x, player.y - healthBox.y) < player.radius + healthBox.radius) {
+      const before = player.health;
+      player.health = Math.min(100, player.health + 40);
+      score += 30;
+      updateHUD();
+      setMessage(player.health > before ? "❤️ תיבת בריאות! +" + (player.health - before) + " חיים" : "❤️ כבר מלא בחיים");
+      placeHealthBox();
+    }
+  }
+
   function checkMission() {
     // win happens on last arrest — no map flag zone
   }
@@ -550,6 +575,25 @@
     }
   }
 
+  function drawHealthBox() {
+    if (!healthBox.active) return;
+    drawShadow(healthBox.x, healthBox.y, 18, 12);
+    const bob = Math.sin(performance.now() / 260 + 1.5) * 4;
+    if (assets.medkit) {
+      ctx.save();
+      ctx.shadowColor = "#ff4d4d";
+      ctx.shadowBlur = 18;
+      drawSpriteCentered(assets.medkit, healthBox.x, healthBox.y + bob, 46);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(healthBox.x - 16, healthBox.y - 12 + bob, 32, 24);
+      ctx.fillStyle = "#e53935";
+      ctx.fillRect(healthBox.x - 3, healthBox.y - 10 + bob, 6, 20);
+      ctx.fillRect(healthBox.x - 10, healthBox.y - 3 + bob, 20, 6);
+    }
+  }
+
   function drawBullets() {
     for (const b of enemyBullets) {
       ctx.beginPath();
@@ -646,6 +690,7 @@
     }
     for (const e of enemies) items.push({ footY: e.y + e.radius * 0.9, kind: "enemy", e });
     if (pickup.active) items.push({ footY: pickup.y + 18, kind: "pickup" });
+    if (healthBox.active) items.push({ footY: healthBox.y + 18, kind: "health" });
     items.push({ footY: player.y + player.radius * 0.9, kind: "player" });
     items.sort((a, b) => a.footY - b.footY || (a.kind === "enemy" || a.kind === "player" ? 1 : 0));
 
@@ -657,6 +702,7 @@
         ctx.drawImage(it.d.img, it.d.x - it.d.w / 2, it.d.y - it.d.h / 2, it.d.w, it.d.h);
       } else if (it.kind === "enemy") drawEnemy(it.e);
       else if (it.kind === "pickup") drawPickup();
+      else if (it.kind === "health") drawHealthBox();
       else if (it.kind === "player") drawPlayer();
     }
   }
@@ -707,6 +753,7 @@
     updateBullets();
     updateReload();
     updatePickup();
+    updateHealthBox();
     checkMission();
     taserLines.forEach(l => l.life--);
     taserLines = taserLines.filter(l => l.life > 0);
@@ -734,6 +781,7 @@
     createEnemies();
     placeDecorations();
     placePickup();
+    placeHealthBox();
     updateHUD();
     setMessage("🎯 עצור את כל האויבים");
   }
