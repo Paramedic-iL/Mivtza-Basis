@@ -460,7 +460,9 @@
 
   function showWinBanner(on) {
     const el = document.getElementById("winBanner");
-    if (el) el.style.display = on ? "flex" : "none";
+    if (!el) return;
+    el.classList.toggle("on", !!on);
+    el.style.display = on ? "flex" : "none";
   }
 
   function setMessage(t) { document.getElementById("message").textContent = t; }
@@ -772,9 +774,42 @@
     drawTaser();
     drawMinimap();
     if (gameOver || won) {
-      ctx.fillStyle = "rgba(0,0,0,.28)";
+      ctx.fillStyle = "rgba(0,0,0,.45)";
       ctx.fillRect(0, 0, width, height);
     }
+    if (won) drawWinBox();
+  }
+
+  function drawWinBox() {
+    const boxW = Math.min(420, width * 0.82);
+    const boxH = Math.min(220, height * 0.38);
+    const x = (width - boxW) / 2;
+    const y = (height - boxH) / 2;
+    ctx.save();
+    ctx.fillStyle = "#142338";
+    ctx.strokeStyle = "#ffd54f";
+    ctx.lineWidth = 5;
+    roundRect(ctx, x, y, boxW, boxH, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold " + Math.floor(Math.min(42, boxW / 9)) + "px Segoe UI, Tahoma, Arial, sans-serif";
+    ctx.fillText("כל הכבוד", width / 2, y + boxH * 0.38);
+    ctx.font = "bold " + Math.floor(Math.min(34, boxW / 11)) + "px Segoe UI, Tahoma, Arial, sans-serif";
+    ctx.fillText("עצרת את כולם", width / 2, y + boxH * 0.68);
+    ctx.restore();
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
   }
 
   function update() {

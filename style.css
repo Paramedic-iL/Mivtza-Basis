@@ -18,14 +18,15 @@ canvas#game{display:block;width:100vw;height:100vh}
 #message{top:14px;left:50%;transform:translateX(-50%);padding:10px 18px;max-width:min(520px,55%);text-align:center;pointer-events:none;font-size:14px}
 
 #winBanner{
-  display:none;position:absolute;inset:0;z-index:40;align-items:center;justify-content:center;
-  background:rgba(0,0,0,.35);pointer-events:none;
+  display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.4);pointer-events:none;
 }
+#winBanner.on{display:flex !important}
 #winBox{
-  min-width:min(420px,78vw);padding:36px 28px;border-radius:22px;text-align:center;
-  background:linear-gradient(180deg,#1a2a40,#0d1522);border:3px solid #ffd54f;
-  box-shadow:0 16px 40px rgba(0,0,0,.55);font-size:clamp(28px,5vw,42px);font-weight:800;
-  line-height:1.35;color:#fff;text-shadow:0 2px 0 #000;
+  width:min(420px,82vw);padding:40px 28px;border-radius:22px;text-align:center;
+  background:#142338;border:5px solid #ffd54f;
+  box-shadow:0 16px 40px rgba(0,0,0,.65);font-size:clamp(28px,6vw,44px);font-weight:800;
+  line-height:1.4;color:#fff;text-shadow:0 2px 0 #000;
 }
 
 .hud-right{position:absolute;z-index:10;right:12px;top:12px;display:flex;gap:10px;align-items:flex-start}
