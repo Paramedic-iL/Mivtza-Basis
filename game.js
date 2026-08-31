@@ -422,9 +422,9 @@
     bolts.textContent = "⚡".repeat(player.ammo) + "·".repeat(Math.max(0, player.maxAmmo - player.ammo));
   }
 
-  function drawShadow(x, y, rx, ry) {
+  function drawShadow(x, y, rx, ry, dark) {
     ctx.save();
-    ctx.fillStyle = "rgba(28, 48, 22, 0.45)";
+    ctx.fillStyle = dark ? "rgba(0, 0, 0, 0.62)" : "rgba(28, 48, 22, 0.45)";
     ctx.beginPath();
     ctx.ellipse(x, y + ry * 0.35, rx, ry * 0.32, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -446,28 +446,37 @@
   }
 
   function drawWallSprite(w) {
-    // Same concrete block style for horizontal and vertical walls
+    // One clean concrete piece per wall — no stacking / walls-inside-walls
     const img = assets.wallBlock || assets.wallH || assets.wallV;
     if (!img) {
       ctx.fillStyle = "#6b6f76";
       ctx.fillRect(w.x, w.y, w.w, w.h);
       return;
     }
+
     const horizontal = w.w >= w.h;
+    let dw, dh, dx, dy;
     if (horizontal) {
-      const th = Math.max(w.h * 1.75, 40);
-      const tw = th * (img.width / img.height);
-      for (let x = w.x; x < w.x + w.w - 2; x += tw * 0.7) {
-        const dw = Math.min(tw, w.x + w.w - x + tw * 0.12);
-        ctx.drawImage(img, x - 3, w.y + w.h - th + 5, dw, th);
-      }
+      dh = Math.max(w.h * 2.1, 44);
+      dw = Math.max(w.w * 1.05, dh * (img.width / img.height) * 0.85);
+      dx = w.x + w.w / 2 - dw / 2;
+      dy = w.y + w.h - dh + 8;
     } else {
-      const tw = Math.max(w.w * 1.85, 36);
-      const th = tw * (img.height / img.width);
-      for (let y = w.y; y < w.y + w.h - 2; y += th * 0.62) {
-        ctx.drawImage(img, w.x + w.w / 2 - tw / 2, y - th * 0.3, tw, th);
-      }
+      dw = Math.max(w.w * 2.2, 40);
+      dh = Math.max(w.h * 1.15, dw * (img.height / img.width) * 0.9);
+      dx = w.x + w.w / 2 - dw / 2;
+      dy = w.y + w.h - dh + 6;
     }
+
+    // darker black shadow under the wall
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.beginPath();
+    ctx.ellipse(w.x + w.w / 2 + 4, w.y + w.h + 2, Math.max(w.w, dw) * 0.42, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.drawImage(img, dx, dy, dw, dh);
   }
 
   function drawSpriteCentered(img, x, y, targetH) {
