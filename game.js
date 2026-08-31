@@ -55,12 +55,13 @@
     });
   }
 
+  const ASSET_V = "ff10";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
-      img.src = src;
+      img.src = src + (src.includes("?") ? "&" : "?") + "v=" + ASSET_V;
     });
   }
 
