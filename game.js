@@ -208,28 +208,37 @@
     return walls.map(w => ({ x: w.x * width, y: w.y * height, w: w.w * width, h: w.h * height }));
   }
 
-  // Bullets / taser use slightly padded walls so shots don't slip seams
-  function wallHitboxes() {
-    return pxWalls().map(w => {
-      const horizontal = w.w >= w.h;
-      if (horizontal) {
-        const padY = Math.max(8, w.h * 0.45);
-        return { x: w.x - 2, y: w.y - padY * 0.25, w: w.w + 4, h: w.h + padY };
-      }
-      const padX = Math.max(8, w.w * 0.55);
-      return { x: w.x - padX * 0.4, y: w.y - 2, w: w.w + padX, h: w.h + 4 };
-    });
+  // Align collision to how walls are actually drawn (centered tall sprites)
+  function wallVisualBox(w) {
+    const img = assets.wallBlock || assets.wallH || assets.wallV;
+    const horizontal = w.w >= w.h;
+    if (!img) return { x: w.x, y: w.y, w: w.w, h: w.h };
+
+    if (horizontal) {
+      // Drawn upward from the layout strip — block only the ground base
+      const th = Math.max(w.h * 2.0, 42);
+      const baseH = Math.max(24, Math.min(th * 0.42, w.h + 18));
+      const baseY = w.y + w.h - baseH + 6;
+      return { x: w.x - 2, y: baseY, w: w.w + 4, h: baseH };
+    }
+
+    // Vertical: sprite is centered on the thin layout rect and much wider
+    const tw = Math.max(w.w * 2.05, 38);
+    const walkW = tw * 0.78; // stone body, not soft outer fringe
+    return {
+      x: w.x + w.w / 2 - walkW / 2,
+      y: w.y - 2,
+      w: walkW,
+      h: w.h + 4
+    };
   }
 
-  // Walking uses the visible wall footprint only — matches the gap you see on screen
+  function wallHitboxes() {
+    return pxWalls().map(wallVisualBox);
+  }
+
   function walkWallHitboxes() {
-    return pxWalls().map(w => {
-      const horizontal = w.w >= w.h;
-      if (horizontal) {
-        return { x: w.x, y: w.y - w.h * 0.1, w: w.w, h: w.h * 1.25 };
-      }
-      return { x: w.x - w.w * 0.1, y: w.y, w: w.w * 1.25, h: w.h };
-    });
+    return pxWalls().map(wallVisualBox);
   }
 
   // Entity x/y is sprite center; feet / shadow sit a bit lower
@@ -237,7 +246,7 @@
     return entity.y + 10;
   }
 
-  const ASSET_V = "ff18";
+  const ASSET_V = "ff19";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -636,8 +645,8 @@
 
   function useTaser() {
     if (gameOver || won) return;
-    if (player.reloading) { setMessage("🔄 עדיין טוען..."); return; }
-    if (!player.ready) { setMessage("🔄 חובה לטעון מחדש עם R"); return; }
+    if (player.reloading) { setMessage("🔄 טוען מחדש..."); return; }
+    if (!player.ready) { setMessage("🔄 הטייזר עוד לא מוכן"); return; }
     if (player.ammo <= 0) { setMessage("⚠️ אין יריות! מצא מחסנית"); return; }
 
     // Nearest active enemy in range, with clear line of sight
@@ -668,18 +677,31 @@
     if (Math.random() < 0.45) setTimeout(() => audio.playRandom(VOICE_TAUNT, 0.85), 280);
     score += 25;
     updateHUD();
-    setMessage(player.ammo > 0 ? "⚡ נוטרל! עכשיו R לטעינה" : "⚡ ירייה אחרונה — מצא מחסנית");
+    if (player.ammo > 0) {
+      setMessage("⚡ נוטרל! טוען מחדש...");
+      beginReload();
+    } else {
+      setMessage("⚡ ירייה אחרונה — מצא מחסנית");
+    }
   }
 
-  function reloadTaser() {
+  function beginReload() {
     if (gameOver || won || player.reloading) return;
-    if (player.ready) { setMessage("הטייזר כבר מוכן"); return; }
-    if (player.ammo <= 0) { setMessage("⚠️ אין תחמושת — מצא מחסנית"); return; }
+    if (player.ammo <= 0) return;
     player.reloading = true;
+    player.ready = false;
     player.reloadStart = performance.now();
     player.reloadEnd = player.reloadStart + 500;
     audio.play("reload.wav", 0.7);
     updateHUD();
+  }
+
+  function reloadTaser() {
+    // kept for mobile button / R — but reload is automatic after each shot
+    if (gameOver || won || player.reloading) return;
+    if (player.ready) { setMessage("הטייזר כבר מוכן"); return; }
+    if (player.ammo <= 0) { setMessage("⚠️ אין תחמושת — מצא מחסנית"); return; }
+    beginReload();
     setMessage("🔄 טוען מחדש...");
   }
 
