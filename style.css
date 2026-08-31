@@ -25,8 +25,6 @@ canvas#game{display:block;width:100vw;height:100vh}
 .btn.blue{background:#2f7fd6;color:#fff}
 
 #help{display:none;right:12px;top:150px;width:min(280px,80vw);padding:14px;line-height:1.65;font-size:13px}
-.controls-panel{left:12px;bottom:12px;padding:10px 12px;font-size:12px;line-height:1.55;max-width:280px}
-.score-panel{right:12px;bottom:12px;padding:10px 12px;font-size:12px;line-height:1.55;text-align:right}
 
 #mobile{display:none}
 .mobile{position:absolute;z-index:20;border:0;border-radius:50%;width:58px;height:58px;background:rgba(0,0,0,.66);color:#fff;font-size:22px;touch-action:none}
@@ -37,12 +35,10 @@ canvas#game{display:block;width:100vw;height:100vh}
 
 @media(max-width:900px),(pointer:coarse){
   #mobile{display:block}
-  .controls-panel{display:none}
   .hud-player{min-width:210px;padding:8px}
   .hud-player img{width:48px;height:48px}
   #minimap{width:88px;height:88px}
   #message{font-size:12px;max-width:48%}
-  .score-panel{font-size:11px;max-width:55%}
 }
 @supports(padding:max(0px)){
   .hud-player{top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left))}

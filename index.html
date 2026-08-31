@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>מבצע בסיס</title>
-<link rel="stylesheet" href="style.css?v=vision1">
+<link rel="stylesheet" href="style.css?v=fix2">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -16,6 +16,7 @@
     <div class="row"><span class="lbl">חיים</span><div class="bar"><div id="healthBar"></div></div><span id="health">100</span></div>
     <div class="row bolts" id="ammoBolts" title="יריות"></div>
     <div class="row small">מחסנית <b id="ammo">5</b>/5 · <span id="reloadState">מוכן</span></div>
+    <div class="row small">עצורים <b id="arrested">0</b>/<span id="enemyTotal">0</span> · ניקוד <b id="score">0</b></div>
     <div id="reloadBarWrap"><div id="reloadBar"></div></div>
   </div>
 </div>
@@ -41,18 +42,6 @@
   טייזר מנטרל לשנייה. כדור אויב = ‎-10 חיים.
 </div>
 
-<div id="hudBottomLeft" class="panel controls-panel">
-  <b>שליטה</b><br>
-  WASD / חצים — תנועה<br>
-  Space — טייזר · E — עצור · R — טעינה
-</div>
-
-<div id="hudBottomRight" class="panel score-panel">
-  נטרול: +25 · מעצר: +100 · משימה: +500<br>
-  <b>ניקוד:</b> <span id="score">0</span>
-  · <b>עצורים:</b> <span id="arrested">0</span>/<span id="enemyTotal">0</span>
-</div>
-
 <div id="mobile">
   <button class="mobile" id="up" type="button">▲</button>
   <button class="mobile" id="down" type="button">▼</button>
@@ -63,6 +52,6 @@
   <button class="mobile" id="reload" type="button">R<br>טעינה</button>
 </div>
 
-<script src="game.js?v=vision1"></script>
+<script src="game.js?v=fix2"></script>
 </body>
 </html>

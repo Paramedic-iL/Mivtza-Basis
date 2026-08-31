@@ -11,13 +11,12 @@
   const held = {};
 
   const player = {
-    x: 100, y: 350, radius: 20, speed: 4.2,
+    x: 100, y: 350, radius: 20, speed: 2.1,
     health: 100, ammo: 5, maxAmmo: 5,
     ready: true, reloading: false, reloadStart: 0, reloadEnd: 0,
     facing: "down", moving: false
   };
   const pickup = { x: 0, y: 0, radius: 28, active: true };
-  const mission = { x: 0, y: 0, w: 120, h: 120 };
 
   const walls = [
     { x: .17, y: .10, w: .05, h: .30 }, { x: .17, y: .53, w: .05, h: .31 },
@@ -35,7 +34,7 @@
     ground: null,
     wallH: null, wallV: null, wallBlock: null,
     taserMagazine: null, muzzle: null, taserBolt: null, stunAura: null,
-    marker: null, missionFlag: null, missionZone: null
+    marker: null
   };
 
   function pxWalls() {
@@ -77,8 +76,6 @@
     assets.stunAura = await loadImage("assets/sprites/vfx/stun_aura.png");
     assets.marker = await loadImage("assets/sprites/vfx/enemy_marker.png")
       || await loadImage("assets/sprites/vfx/enemy_marker2.png");
-    assets.missionFlag = await loadImage("assets/sprites/vfx/mission_flag.png");
-    assets.missionZone = await loadImage("assets/sprites/vfx/mission_zone.png");
 
     const wallSkip = new Set([
       "assets/sprites/obstacles/obs_01.png",
@@ -96,8 +93,6 @@
     canvas.height = innerHeight;
     width = canvas.width;
     height = canvas.height;
-    mission.x = width - 160;
-    mission.y = height - 160;
   }
 
   function circleRectCollision(x, y, r, rect) {
@@ -120,7 +115,6 @@
   function validSpawn(x, y, r = 28) {
     if (blocked(x, y, r)) return false;
     if (Math.hypot(x - player.x, y - player.y) < 170) return false;
-    if (x > mission.x - 40 && y > mission.y - 40) return false;
     return true;
   }
 
@@ -166,15 +160,73 @@
     enemies = [];
     for (let i = 0; i < 6; i++) {
       const p = randomFreePosition(22);
+      const bias = (i / 6) * Math.PI * 2 + Math.random() * 0.7;
       enemies.push({
         x: p.x, y: p.y, radius: 18,
-        speed: 0.72 + Math.random() * 0.28,
+        speed: 0.55 + Math.random() * 0.45,
         state: "active", stunUntil: 0,
         shootCooldown: 40 + Math.floor(Math.random() * 70),
-        facing: "down"
+        facing: "down",
+        // unique approach style — not a shared straight line
+        pathBias: bias,
+        orbitSign: i % 2 === 0 ? 1 : -1,
+        orbitDist: 160 + Math.random() * 220,
+        waypoint: null,
+        retargetAt: 0,
+        wanderPhase: Math.random() * Math.PI * 2
       });
+      pickEnemyWaypoint(enemies[enemies.length - 1], true);
     }
     document.getElementById("enemyTotal").textContent = enemies.length;
+  }
+
+  function pickEnemyWaypoint(e, force) {
+    const now = performance.now();
+    if (!force && e.waypoint && now < e.retargetAt) return;
+    e.wanderPhase += 0.7 + Math.random();
+    // personal flanking / orbit point around the player
+    const ang = e.pathBias + Math.sin(e.wanderPhase) * 0.9 + e.orbitSign * 0.4;
+    const dist = e.orbitDist * (0.75 + Math.random() * 0.5);
+    let tx = player.x + Math.cos(ang) * dist;
+    let ty = player.y + Math.sin(ang) * dist;
+    // sometimes take a detour corner instead of direct approach
+    if (Math.random() < 0.45) {
+      tx += (Math.random() - 0.5) * 280;
+      ty += (Math.random() - 0.5) * 280;
+    }
+    tx = Math.max(40, Math.min(width - 40, tx));
+    ty = Math.max(40, Math.min(height - 40, ty));
+    // nudge until free-ish
+    for (let i = 0; i < 12; i++) {
+      if (!blocked(tx, ty, e.radius + 2)) break;
+      tx = 60 + Math.random() * (width - 120);
+      ty = 60 + Math.random() * (height - 120);
+    }
+    e.waypoint = { x: tx, y: ty };
+    e.retargetAt = now + 900 + Math.random() * 1600;
+  }
+
+  function enemySteer(e) {
+    pickEnemyWaypoint(e, false);
+    const wp = e.waypoint || { x: player.x, y: player.y };
+    let dx = wp.x - e.x;
+    let dy = wp.y - e.y;
+    // separation — don't clump into one blob
+    for (const other of enemies) {
+      if (other === e || other.state === "arrested") continue;
+      const ox = e.x - other.x, oy = e.y - other.y;
+      const d = Math.hypot(ox, oy) || 0.01;
+      if (d < 70) {
+        const push = (70 - d) / 70;
+        dx += (ox / d) * push * 90;
+        dy += (oy / d) * push * 90;
+      }
+    }
+    // soft pull toward player so they still hunt
+    dx += (player.x - e.x) * 0.18;
+    dy += (player.y - e.y) * 0.18;
+    if (Math.hypot(dx, dy) < 8) pickEnemyWaypoint(e, true);
+    return { dx, dy };
   }
 
   function moveEntity(entity, dx, dy, speed, r) {
@@ -228,11 +280,13 @@
           setMessage("⚠️ האויב השתחרר מהטייזר!");
         } else continue;
       }
-      const dx = player.x - e.x, dy = player.y - e.y, d = Math.hypot(dx, dy);
-      e.facing = facingFromDelta(dx, dy);
-      if (d < 650 && d > 140) moveEntity(e, dx, dy, e.speed, e.radius);
+      const steer = enemySteer(e);
+      const dx = steer.dx, dy = steer.dy;
+      const dPlayer = Math.hypot(player.x - e.x, player.y - e.y);
+      e.facing = facingFromDelta(player.x - e.x, player.y - e.y);
+      if (dPlayer > 90) moveEntity(e, dx, dy, e.speed, e.radius);
       e.shootCooldown--;
-      if (d < 400 && d > 70 && e.shootCooldown <= 0 && !lineHitsWall(e.x, e.y, player.x, player.y)) {
+      if (dPlayer < 400 && dPlayer > 70 && e.shootCooldown <= 0 && !lineHitsWall(e.x, e.y, player.x, player.y)) {
         enemyShoot(e);
         e.shootCooldown = 70 + Math.floor(Math.random() * 55);
       }
@@ -323,8 +377,13 @@
         score += 100;
         updateHUD();
         setMessage(arrested === enemies.length
-          ? "✅ כולם נעצרו! הגיע לנקודת המשימה"
+          ? "🏆 כולם נעצרו — המשימה הושלמה!"
           : "👮 אויב נעצר!");
+        if (arrested === enemies.length) {
+          won = true;
+          score += 500;
+          updateHUD();
+        }
         return;
       }
     }
@@ -346,14 +405,7 @@
   }
 
   function checkMission() {
-    if (arrested !== enemies.length || won) return;
-    if (player.x > mission.x && player.x < mission.x + mission.w &&
-        player.y > mission.y && player.y < mission.y + mission.h) {
-      won = true;
-      score += 500;
-      updateHUD();
-      setMessage("🏆 המשימה הושלמה!");
-    }
+    // win happens on last arrest — no map flag zone
   }
 
   function setMessage(t) { document.getElementById("message").textContent = t; }
@@ -372,9 +424,9 @@
 
   function drawShadow(x, y, rx, ry) {
     ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,.28)";
+    ctx.fillStyle = "rgba(28, 48, 22, 0.45)";
     ctx.beginPath();
-    ctx.ellipse(x, y + ry * 0.55, rx, ry * 0.35, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + ry * 0.35, rx, ry * 0.32, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -393,58 +445,27 @@
     }
   }
 
-  function drawMission() {
-    const ready = arrested === enemies.length;
-    if (assets.missionZone) {
-      ctx.globalAlpha = ready ? 0.95 : 0.7;
-      ctx.drawImage(assets.missionZone, mission.x, mission.y, mission.w, mission.h);
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.strokeStyle = "#ffe566";
-      ctx.lineWidth = 3;
-      ctx.setLineDash([8, 6]);
-      ctx.strokeRect(mission.x, mission.y, mission.w, mission.h);
-      ctx.setLineDash([]);
-      ctx.fillStyle = ready ? "rgba(255,214,0,.35)" : "rgba(144,124,44,.28)";
-      ctx.fillRect(mission.x, mission.y, mission.w, mission.h);
-    }
-    if (assets.missionFlag) {
-      const fh = 54;
-      const fw = assets.missionFlag.width * (fh / assets.missionFlag.height);
-      ctx.drawImage(assets.missionFlag, mission.x + mission.w / 2 - fw / 2, mission.y + 18, fw, fh);
-    }
-    ctx.fillStyle = "#111";
-    ctx.font = "bold 13px Segoe UI, Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("נקודת משימה", mission.x + mission.w / 2, mission.y + mission.h - 14);
-  }
-
   function drawWallSprite(w) {
-    const horizontal = w.w >= w.h;
-    const img = horizontal
-      ? (assets.wallH || assets.wallBlock)
-      : (assets.wallBlock || assets.wallV || assets.wallH);
+    // Same concrete block style for horizontal and vertical walls
+    const img = assets.wallBlock || assets.wallH || assets.wallV;
     if (!img) {
       ctx.fillStyle = "#6b6f76";
       ctx.fillRect(w.x, w.y, w.w, w.h);
       return;
     }
-
-    // Tile concrete blocks along the wall instead of stretching one tall sprite
+    const horizontal = w.w >= w.h;
     if (horizontal) {
-      const th = Math.max(w.h * 1.8, 42);
+      const th = Math.max(w.h * 1.75, 40);
       const tw = th * (img.width / img.height);
-      for (let x = w.x; x < w.x + w.w - 4; x += tw * 0.72) {
-        const dw = Math.min(tw, w.x + w.w - x + tw * 0.15);
-        ctx.drawImage(img, x - 4, w.y + w.h - th + 6, dw, th);
+      for (let x = w.x; x < w.x + w.w - 2; x += tw * 0.7) {
+        const dw = Math.min(tw, w.x + w.w - x + tw * 0.12);
+        ctx.drawImage(img, x - 3, w.y + w.h - th + 5, dw, th);
       }
     } else {
-      const tw = Math.max(w.w * 1.9, 38);
-      const th = tw * (img.height / img.width) * 0.85;
-      const block = assets.wallBlock || img;
-      const bh = tw * (block.height / block.width);
-      for (let y = w.y; y < w.y + w.h - 2; y += bh * 0.62) {
-        ctx.drawImage(block, w.x + w.w / 2 - tw / 2, y - bh * 0.35, tw, bh);
+      const tw = Math.max(w.w * 1.85, 36);
+      const th = tw * (img.height / img.width);
+      for (let y = w.y; y < w.y + w.h - 2; y += th * 0.62) {
+        ctx.drawImage(img, w.x + w.w / 2 - tw / 2, y - th * 0.3, tw, th);
       }
     }
   }
@@ -570,16 +591,20 @@
   function drawWorldSorted() {
     const items = [];
     for (const w of pxWalls()) items.push({ footY: w.y + w.h, kind: "wall", w });
-    for (const d of decorations) items.push({ footY: d.y + d.h * 0.42, kind: "deco", d });
-    for (const e of enemies) items.push({ footY: e.y + e.radius, kind: "enemy", e });
+    for (const d of decorations) {
+      // sprite drawn centered on d.y — feet at bottom edge
+      items.push({ footY: d.y + d.h * 0.5, kind: "deco", d });
+    }
+    for (const e of enemies) items.push({ footY: e.y + e.radius * 0.9, kind: "enemy", e });
     if (pickup.active) items.push({ footY: pickup.y + 18, kind: "pickup" });
-    items.push({ footY: player.y + player.radius, kind: "player" });
-    items.sort((a, b) => a.footY - b.footY);
+    items.push({ footY: player.y + player.radius * 0.9, kind: "player" });
+    items.sort((a, b) => a.footY - b.footY || (a.kind === "enemy" || a.kind === "player" ? 1 : 0));
 
     for (const it of items) {
       if (it.kind === "wall") drawWallSprite(it.w);
       else if (it.kind === "deco") {
-        drawShadow(it.d.x, it.d.y, it.d.w * 0.28, it.d.h * 0.18);
+        // soft grass-colored shadow only (sprite pale shadows already stripped)
+        drawShadow(it.d.x, it.d.y + it.d.h * 0.28, it.d.w * 0.26, it.d.h * 0.16);
         ctx.drawImage(it.d.img, it.d.x - it.d.w / 2, it.d.y - it.d.h / 2, it.d.w, it.d.h);
       } else if (it.kind === "enemy") drawEnemy(it.e);
       else if (it.kind === "pickup") drawPickup();
@@ -595,8 +620,6 @@
     const sx = mw / width, sy = mh / height;
     mctx.fillStyle = "#5a6570";
     for (const w of pxWalls()) mctx.fillRect(w.x * sx, w.y * sy, Math.max(2, w.w * sx), Math.max(2, w.h * sy));
-    mctx.strokeStyle = "#ffe566";
-    mctx.strokeRect(mission.x * sx, mission.y * sy, mission.w * sx, mission.h * sy);
     for (const e of enemies) {
       if (e.state === "arrested") mctx.fillStyle = "#7dffa0";
       else if (e.state === "stunned") mctx.fillStyle = "#55e0ff";
@@ -618,7 +641,6 @@
   function draw() {
     ctx.clearRect(0, 0, width, height);
     drawGround();
-    drawMission();
     drawWorldSorted();
     drawBullets();
     drawFlashes();
@@ -678,8 +700,6 @@
     resize();
     player.x = px * width;
     player.y = py * height;
-    mission.x = width - 160;
-    mission.y = height - 160;
   });
 
   addEventListener("keydown", e => {
