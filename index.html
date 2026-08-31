@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>מבצע בסיס</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="panel">
+  <b>🪖 מבצע בסיס</b><br>
+  ❤️ חיים: <span id="health">100</span><br>
+  ⚡ יריות טייזר: <span id="ammo">5</span>/5<br>
+  🔄 מצב: <span id="reloadState">מוכן</span><br>
+  👮 נעצרו: <span id="arrested">0</span>/<span id="enemyTotal">0</span><br>
+  🎯 ניקוד: <span id="score">0</span>
+  <div id="reloadBarWrap"><div id="reloadBar"></div></div>
+</div>
+
+<div id="message" class="panel">טוען...</div>
+<button id="restart" class="btn" type="button">🔄 משחק חדש</button>
+<button id="helpBtn" class="btn" type="button">❓ מקרא</button>
+
+<div id="help" class="panel">
+  <b>מקרא</b><br><br>
+  תנועה: WASD / חצים — עובד גם במקלדת עברית.<br>
+  ⚡ טייזר: Space<br>
+  🔄 טעינה מחדש: R — חצי שנייה<br>
+  🤝 מעצר: E<br><br>
+  אחרי כל יריית טייזר חייבים לטעון מחדש.<br>
+  יש 5 יריות. כשנגמר — מצא את המחסנית הצהובה.<br>
+  טייזר מנטרל אויב לשנייה אחת.<br>
+  כדור אויב מוריד 10 חיים.
+</div>
+
+<div id="mobile">
+  <button class="mobile" id="up" type="button">▲</button>
+  <button class="mobile" id="down" type="button">▼</button>
+  <button class="mobile" id="left" type="button">◀</button>
+  <button class="mobile" id="right" type="button">▶</button>
+  <button class="mobile" id="taser" type="button">⚡<br>טייזר</button>
+  <button class="mobile" id="arrest" type="button">🤝<br>עצור</button>
+  <button class="mobile" id="reload" type="button">R<br>טעינה</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+assets/raw/*_grid.png
+assets/sprites/_sheet_clean.png
+.idea/
+.vscode/
