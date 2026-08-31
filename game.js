@@ -55,7 +55,7 @@
     });
   }
 
-  const ASSET_V = "ff10";
+  const ASSET_V = "ff11";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -352,28 +352,76 @@
     }
   }
 
+  function makeLightningBolt(x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    const px = -uy, py = ux;
+
+    // Main bolt follows the imaginary straight line to the target
+    const main = [{ x: x1, y: y1 }];
+    const steps = Math.max(8, Math.floor(len / 12));
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      const envelope = Math.sin(t * Math.PI); // less jagged near ends
+      const jag = (Math.random() * 2 - 1) * (10 + len * 0.02) * envelope;
+      main.push({
+        x: x1 + ux * len * t + px * jag,
+        y: y1 + uy * len * t + py * jag
+      });
+    }
+    main.push({ x: x2, y: y2 });
+
+    // Branching forks off the guiding line
+    const branches = [];
+    for (let i = 2; i < main.length - 2; i++) {
+      if (Math.random() > 0.55) continue;
+      const p = main[i];
+      const side = Math.random() < 0.5 ? 1 : -1;
+      const branchLen = 12 + Math.random() * 24;
+      const ang = Math.atan2(uy, ux) + side * (0.55 + Math.random() * 0.95);
+      const bpts = [{ x: p.x, y: p.y }];
+      const segs = 2 + (Math.random() < 0.5 ? 1 : 0);
+      for (let s = 1; s <= segs; s++) {
+        const t = s / segs;
+        bpts.push({
+          x: p.x + Math.cos(ang) * branchLen * t + (Math.random() * 2 - 1) * 5,
+          y: p.y + Math.sin(ang) * branchLen * t + (Math.random() * 2 - 1) * 5
+        });
+      }
+      branches.push(bpts);
+    }
+    return { main, branches };
+  }
+
   function useTaser() {
     if (gameOver || won) return;
     if (player.reloading) { setMessage("🔄 עדיין טוען..."); return; }
     if (!player.ready) { setMessage("🔄 חובה לטעון מחדש עם R"); return; }
     if (player.ammo <= 0) { setMessage("⚠️ אין יריות! מצא מחסנית"); return; }
+
+    // Nearest active enemy in range, with clear line of sight
     let target = null, closest = 230;
     for (const e of enemies) {
       if (e.state !== "active") continue;
       const d = Math.hypot(e.x - player.x, e.y - player.y);
       if (d < closest && !lineHitsWall(player.x, player.y, e.x, e.y)) {
-        closest = d; target = e;
+        closest = d;
+        target = e;
       }
     }
     if (!target) { setMessage("אין אויב בטווח הטייזר"); return; }
+
     target.state = "stunned";
     target.stunUntil = performance.now() + 1000;
     player.ammo--;
     player.ready = false;
     player.facing = facingFromDelta(target.x - player.x, target.y - player.y);
+    const bolt = makeLightningBolt(player.x, player.y, target.x, target.y);
     taserLines.push({
       x1: player.x, y1: player.y, x2: target.x, y2: target.y,
-      life: 10, target
+      main: bolt.main, branches: bolt.branches,
+      life: 14, target
     });
     score += 25;
     updateHUD();
@@ -637,53 +685,51 @@
     }
   }
 
-  function drawTaser() {
-    // Clean blue lightning (old sprite was a yellow muzzle flash — looked wrong)
-    for (const l of taserLines) {
-      const dx = l.x2 - l.x1, dy = l.y2 - l.y1;
-      const len = Math.hypot(dx, dy) || 1;
-      const ux = dx / len, uy = dy / len;
-      const px = -uy, py = ux;
-      const alpha = Math.min(1, l.life / 7);
+  function strokePoly(pts) {
+    if (!pts || pts.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+  }
 
+  function drawTaser() {
+    // Cyan branching lightning along the imaginary line to the nearest enemy
+    const boltW = 3; // same thickness as enemy bullet trail
+    for (const l of taserLines) {
+      const alpha = Math.min(1, l.life / 8);
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
-      // soft glow
-      ctx.beginPath();
-      ctx.moveTo(l.x1, l.y1);
-      let steps = Math.max(6, Math.floor(len / 18));
-      for (let i = 1; i <= steps; i++) {
-        const t = i / steps;
-        const jag = Math.sin(i * 2.7 + l.life) * 7 + (i % 2 ? 5 : -5);
-        ctx.lineTo(l.x1 + ux * len * t + px * jag, l.y1 + uy * len * t + py * jag);
+      const mains = l.main || [{ x: l.x1, y: l.y1 }, { x: l.x2, y: l.y2 }];
+      const branches = l.branches || [];
+
+      // Soft cyan glow
+      ctx.strokeStyle = "rgba(100, 230, 255, 0.35)";
+      ctx.lineWidth = boltW + 4;
+      strokePoly(mains);
+      for (const b of branches) strokePoly(b);
+
+      // Bright cyan core (enemy-bullet thickness)
+      ctx.strokeStyle = "#7af7ff";
+      ctx.lineWidth = boltW;
+      strokePoly(mains);
+      for (const b of branches) {
+        ctx.lineWidth = Math.max(2, boltW - 0.5);
+        strokePoly(b);
       }
-      ctx.strokeStyle = "rgba(80, 220, 255, 0.35)";
-      ctx.lineWidth = 10;
-      ctx.stroke();
 
-      // bright core
+      // Hot white center on main bolt
+      ctx.strokeStyle = "#e8ffff";
+      ctx.lineWidth = 1.2;
+      strokePoly(mains);
+
+      // Hit spark on enemy
+      ctx.fillStyle = "#9ef9ff";
       ctx.beginPath();
-      ctx.moveTo(l.x1, l.y1);
-      for (let i = 1; i <= steps; i++) {
-        const t = i / steps;
-        const jag = Math.sin(i * 2.7 + l.life) * 7 + (i % 2 ? 5 : -5);
-        ctx.lineTo(l.x1 + ux * len * t + px * jag, l.y1 + uy * len * t + py * jag);
-      }
-      ctx.strokeStyle = "#b8f7ff";
-      ctx.lineWidth = 3.5;
-      ctx.stroke();
-
-      ctx.strokeStyle = "#00e5ff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // hit spark on target
-      ctx.fillStyle = "#7af7ff";
-      ctx.beginPath();
-      ctx.arc(l.x2, l.y2, 6 + (l.life % 3), 0, Math.PI * 2);
+      ctx.arc(l.x2, l.y2, 5 + (l.life % 3), 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
