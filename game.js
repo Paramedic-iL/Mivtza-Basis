@@ -88,10 +88,12 @@
     }
 
     assets.mapObjects = [];
-    const objs = (manifest.mapObjects || []).slice(0, 40);
-    for (const src of objs) {
-      const img = await loadImage(src);
-      if (img && img.width >= 24 && img.height >= 24) assets.mapObjects.push(img);
+    const objs = (manifest.mapObjects || []).slice(0, 24);
+    const loaded = await Promise.all(objs.map(loadImage));
+    for (const img of loaded) {
+      if (img && img.width >= 24 && img.height >= 24 && img.width < 220 && img.height < 180) {
+        assets.mapObjects.push(img);
+      }
     }
   }
 
@@ -371,18 +373,16 @@
   }
 
   function drawGround() {
-    if (assets.ground) {
-      const tile = 96;
-      for (let x = 0; x < width; x += tile) {
-        for (let y = 0; y < height; y += tile) {
-          ctx.drawImage(assets.ground, x, y, tile, tile);
-        }
+    // Solid grass base — sheet ground crops often include labels/UI, so keep simple.
+    ctx.fillStyle = "#5f7f45";
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = "rgba(0,0,0,.08)";
+    for (let x = 0; x < width; x += 64) {
+      for (let y = 0; y < height; y += 64) {
+        if (((x / 64) + (y / 64)) % 2 === 0) ctx.fillRect(x, y, 64, 64);
       }
-    } else {
-      ctx.fillStyle = "#6c8c54";
-      ctx.fillRect(0, 0, width, height);
     }
-    ctx.strokeStyle = "rgba(255,255,255,.04)";
+    ctx.strokeStyle = "rgba(255,255,255,.05)";
     for (let x = 0; x < width; x += 50) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
     }
