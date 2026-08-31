@@ -246,7 +246,7 @@
     return entity.y + 10;
   }
 
-  const ASSET_V = "ff19";
+  const ASSET_V = "ff20";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -729,16 +729,14 @@
         score += 100;
         audio.play("arrest.mp3", 0.95);
         if (Math.random() < 0.5) setTimeout(() => audio.playRandom(VOICE_TAUNT, 0.8), 500);
-        updateHUD();
-        setMessage(arrested === enemies.length
-          ? "🏆 כל הכבוד!"
-          : "👮 אויב נעצר!");
-        if (arrested === enemies.length) {
-          won = true;
+        const allDone = arrested >= enemies.length;
+        if (allDone) {
+          won = true; // lock before UI so spam E can't double-win
           score += 500;
-          updateHUD();
-          showWinBanner(true);
         }
+        updateHUD();
+        setMessage(allDone ? "🏆 כל הכבוד!" : "👮 אויב נעצר!");
+        if (allDone) showWinBanner(true);
         return;
       }
     }
@@ -1077,43 +1075,10 @@
     drawFlashes();
     drawTaser();
     drawMinimap();
-    if (gameOver || won) {
+    if (gameOver && !won) {
       ctx.fillStyle = "rgba(0,0,0,.45)";
       ctx.fillRect(0, 0, width, height);
     }
-    if (won) drawWinBox();
-  }
-
-  function drawWinBox() {
-    const boxW = Math.min(420, width * 0.82);
-    const boxH = Math.min(220, height * 0.38);
-    const x = (width - boxW) / 2;
-    const y = (height - boxH) / 2;
-    ctx.save();
-    ctx.fillStyle = "#142338";
-    ctx.strokeStyle = "#ffd54f";
-    ctx.lineWidth = 5;
-    roundRect(ctx, x, y, boxW, boxH, 18);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "bold " + Math.floor(Math.min(42, boxW / 9)) + "px Segoe UI, Tahoma, Arial, sans-serif";
-    ctx.fillText("כל הכבוד", width / 2, y + boxH * 0.38);
-    ctx.font = "bold " + Math.floor(Math.min(34, boxW / 11)) + "px Segoe UI, Tahoma, Arial, sans-serif";
-    ctx.fillText("עצרת את כולם", width / 2, y + boxH * 0.68);
-    ctx.restore();
-  }
-
-  function roundRect(c, x, y, w, h, r) {
-    c.beginPath();
-    c.moveTo(x + r, y);
-    c.arcTo(x + w, y, x + w, y + h, r);
-    c.arcTo(x + w, y + h, x, y + h, r);
-    c.arcTo(x, y + h, x, y, r);
-    c.arcTo(x, y, x + w, y, r);
-    c.closePath();
   }
 
   function update() {
