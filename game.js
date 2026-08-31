@@ -793,7 +793,7 @@
     document.getElementById("arrested").textContent = arrested;
     document.getElementById("score").textContent = score;
     document.getElementById("reloadState").textContent =
-      player.reloading ? "טוען..." : player.ready ? "מוכן" : player.ammo > 0 ? "צריך R" : "ריק";
+      player.reloading ? "טוען..." : player.ready ? "מוכן" : player.ammo > 0 ? "טוען..." : "ריק";
     const bolts = document.getElementById("ammoBolts");
     bolts.textContent = "⚡".repeat(player.ammo) + "·".repeat(Math.max(0, player.maxAmmo - player.ammo));
   }
