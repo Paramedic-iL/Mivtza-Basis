@@ -11,7 +11,7 @@
   const held = {};
   let hurtFlashUntil = 0;
 
-  const SFX_V = "2";
+  const SFX_V = "3";
   const audio = {
     unlocked: false,
     cache: {},
@@ -237,7 +237,7 @@
     return entity.y + 10;
   }
 
-  const ASSET_V = "ff17";
+  const ASSET_V = "ff18";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -285,8 +285,9 @@
   }
 
   function resize() {
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
+    const area = document.getElementById("gameArea") || document.body;
+    canvas.width = area.clientWidth || innerWidth;
+    canvas.height = area.clientHeight || innerHeight;
     width = canvas.width;
     height = canvas.height;
   }
@@ -298,8 +299,7 @@
   }
 
   function blocked(x, y, r) {
-    const topPad = 88; // reserved HUD row
-    if (x < r || y < r + topPad || x > width - r || y > height - r) return true;
+    if (x < r || y < r || x > width - r || y > height - r) return true;
     for (const wall of walkWallHitboxes()) if (circleRectCollision(x, y, r, wall)) return true;
     for (const d of decorations) {
       if (!d.solid) continue;
@@ -541,6 +541,7 @@
     const s = 5.2;
     enemyBullets.push({ x: e.x, y: e.y, vx: dx / d * s, vy: dy / d * s, radius: 5, life: 240 });
     flashes.push({ x: e.x + dx / d * 22, y: e.y + dy / d * 22, life: 6, ang: Math.atan2(dy, dx) });
+    audio.play("enemy_shoot.wav", 0.45);
   }
 
   function updateEnemies() {

@@ -5,12 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>מבצע בסיס</title>
-<link rel="stylesheet" href="style.css?v=ff17">
+<link rel="stylesheet" href="style.css?v=ff18">
 </head>
 <body>
-<canvas id="game"></canvas>
-<div id="hurtVignette"></div>
-
 <div id="hudTop">
   <div class="hud-player">
     <img id="portrait" src="assets/sprites/player_portrait.png" alt="">
@@ -34,34 +31,36 @@
   </div>
 </div>
 
-<div id="message">טוען...</div>
+<div id="gameArea">
+  <canvas id="game"></canvas>
+  <div id="hurtVignette"></div>
+  <div id="message">טוען...</div>
+  <div id="help">
+    <b>שליטה</b><br>
+    תנועה: WASD / חצים<br>
+    ⚡ טייזר: Space<br>
+    🔄 טעינה: R<br>
+    🤝 מעצר: E<br><br>
+    אחרי כל ירייה — טען מחדש.<br>
+    5 יריות. כשנגמר — מצא מחסנית צהובה.<br>
+    תיבה לבנה עם צלב אדום — ממלאת חיים.<br>
+    טייזר מנטרל לשנייה. כדור אויב = ‎-10 חיים.
+  </div>
+  <div id="mobile">
+    <button class="mobile" id="up" type="button">▲</button>
+    <button class="mobile" id="down" type="button">▼</button>
+    <button class="mobile" id="left" type="button">◀</button>
+    <button class="mobile" id="right" type="button">▶</button>
+    <button class="mobile" id="taser" type="button">⚡<br>טייזר</button>
+    <button class="mobile" id="arrest" type="button">🤝<br>עצור</button>
+    <button class="mobile" id="reload" type="button">R<br>טעינה</button>
+  </div>
+</div>
 
 <div id="winBanner">
   <div id="winBox">כל הכבוד<br>עצרת את כולם</div>
 </div>
 
-<div id="help">
-  <b>שליטה</b><br>
-  תנועה: WASD / חצים<br>
-  ⚡ טייזר: Space<br>
-  🔄 טעינה: R<br>
-  🤝 מעצר: E<br><br>
-  אחרי כל ירייה — טען מחדש.<br>
-  5 יריות. כשנגמר — מצא מחסנית צהובה.<br>
-  תיבה לבנה עם צלב אדום — ממלאת חיים.<br>
-  טייזר מנטרל לשנייה. כדור אויב = ‎-10 חיים.
-</div>
-
-<div id="mobile">
-  <button class="mobile" id="up" type="button">▲</button>
-  <button class="mobile" id="down" type="button">▼</button>
-  <button class="mobile" id="left" type="button">◀</button>
-  <button class="mobile" id="right" type="button">▶</button>
-  <button class="mobile" id="taser" type="button">⚡<br>טייזר</button>
-  <button class="mobile" id="arrest" type="button">🤝<br>עצור</button>
-  <button class="mobile" id="reload" type="button">R<br>טעינה</button>
-</div>
-
-<script src="game.js?v=ff17"></script>
+<script src="game.js?v=ff18"></script>
 </body>
 </html>
