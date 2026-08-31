@@ -163,7 +163,7 @@
       const bias = (i / 6) * Math.PI * 2 + Math.random() * 0.7;
       enemies.push({
         x: p.x, y: p.y, radius: 18,
-        speed: 0.55 + Math.random() * 0.45,
+        speed: 0.28 + Math.random() * 0.22,
         state: "active", stunUntil: 0,
         shootCooldown: 40 + Math.floor(Math.random() * 70),
         facing: "down",
@@ -446,7 +446,7 @@
   }
 
   function drawWallSprite(w) {
-    // One clean concrete piece per wall — no stacking / walls-inside-walls
+    // Long walls like before, but pieces sit side-by-side — no overlap / wall-in-wall
     const img = assets.wallBlock || assets.wallH || assets.wallV;
     if (!img) {
       ctx.fillStyle = "#6b6f76";
@@ -455,28 +455,39 @@
     }
 
     const horizontal = w.w >= w.h;
-    let dw, dh, dx, dy;
-    if (horizontal) {
-      dh = Math.max(w.h * 2.1, 44);
-      dw = Math.max(w.w * 1.05, dh * (img.width / img.height) * 0.85);
-      dx = w.x + w.w / 2 - dw / 2;
-      dy = w.y + w.h - dh + 8;
-    } else {
-      dw = Math.max(w.w * 2.2, 40);
-      dh = Math.max(w.h * 1.15, dw * (img.height / img.width) * 0.9);
-      dx = w.x + w.w / 2 - dw / 2;
-      dy = w.y + w.h - dh + 6;
-    }
 
-    // darker black shadow under the wall
+    // black shadow under whole wall
     ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillStyle = "rgba(0,0,0,0.72)";
     ctx.beginPath();
-    ctx.ellipse(w.x + w.w / 2 + 4, w.y + w.h + 2, Math.max(w.w, dw) * 0.42, 10, 0, 0, Math.PI * 2);
+    if (horizontal) {
+      ctx.ellipse(w.x + w.w / 2 + 3, w.y + w.h + 3, w.w * 0.48, 9, 0, 0, Math.PI * 2);
+    } else {
+      ctx.ellipse(w.x + w.w / 2 + 4, w.y + w.h + 2, Math.max(18, w.w * 1.1), 9, 0, 0, Math.PI * 2);
+    }
     ctx.fill();
     ctx.restore();
 
-    ctx.drawImage(img, dx, dy, dw, dh);
+    if (horizontal) {
+      const th = Math.max(w.h * 2.0, 42);
+      const tw = th * (img.width / img.height);
+      const count = Math.max(1, Math.ceil(w.w / tw));
+      const pieceW = w.w / count;
+      for (let i = 0; i < count; i++) {
+        const x = w.x + i * pieceW;
+        ctx.drawImage(img, x, w.y + w.h - th + 6, pieceW, th);
+      }
+    } else {
+      const tw = Math.max(w.w * 2.05, 38);
+      const th = tw * (img.height / img.width);
+      const count = Math.max(1, Math.ceil(w.h / (th * 0.92)));
+      const pieceH = w.h / count;
+      for (let i = 0; i < count; i++) {
+        const y = w.y + i * pieceH;
+        // one block per segment, height matches segment — no stacking overlap
+        ctx.drawImage(img, w.x + w.w / 2 - tw / 2, y + pieceH - th * 0.85, tw, th * 0.9);
+      }
+    }
   }
 
   function drawSpriteCentered(img, x, y, targetH) {
@@ -575,25 +586,54 @@
   }
 
   function drawTaser() {
+    // Clean blue lightning (old sprite was a yellow muzzle flash — looked wrong)
     for (const l of taserLines) {
-      if (assets.taserBolt) {
-        const dx = l.x2 - l.x1, dy = l.y2 - l.y1;
-        const len = Math.hypot(dx, dy) || 1;
-        const ang = Math.atan2(dy, dx);
-        ctx.save();
-        ctx.translate(l.x1, l.y1);
-        ctx.rotate(ang);
-        ctx.globalAlpha = Math.min(1, l.life / 6);
-        ctx.drawImage(assets.taserBolt, 0, -14, len, 28);
-        ctx.restore();
-      } else {
-        ctx.beginPath();
-        ctx.moveTo(l.x1, l.y1);
-        ctx.lineTo(l.x2, l.y2);
-        ctx.strokeStyle = "#00eaff";
-        ctx.lineWidth = 4;
-        ctx.stroke();
+      const dx = l.x2 - l.x1, dy = l.y2 - l.y1;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      const px = -uy, py = ux;
+      const alpha = Math.min(1, l.life / 7);
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      // soft glow
+      ctx.beginPath();
+      ctx.moveTo(l.x1, l.y1);
+      let steps = Math.max(6, Math.floor(len / 18));
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const jag = Math.sin(i * 2.7 + l.life) * 7 + (i % 2 ? 5 : -5);
+        ctx.lineTo(l.x1 + ux * len * t + px * jag, l.y1 + uy * len * t + py * jag);
       }
+      ctx.strokeStyle = "rgba(80, 220, 255, 0.35)";
+      ctx.lineWidth = 10;
+      ctx.stroke();
+
+      // bright core
+      ctx.beginPath();
+      ctx.moveTo(l.x1, l.y1);
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const jag = Math.sin(i * 2.7 + l.life) * 7 + (i % 2 ? 5 : -5);
+        ctx.lineTo(l.x1 + ux * len * t + px * jag, l.y1 + uy * len * t + py * jag);
+      }
+      ctx.strokeStyle = "#b8f7ff";
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+
+      ctx.strokeStyle = "#00e5ff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // hit spark on target
+      ctx.fillStyle = "#7af7ff";
+      ctx.beginPath();
+      ctx.arc(l.x2, l.y2, 6 + (l.life % 3), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   }
 
