@@ -1,21 +1,23 @@
-/* מבצע בסיס — standalone (PC + mobile), no Apps Script */
+/* מבצע בסיס — vision polish (PC + mobile) */
 (() => {
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
+  const minimap = document.getElementById("minimap");
+  const mctx = minimap.getContext("2d");
 
   let width = 0, height = 0;
   let score = 0, arrested = 0, gameOver = false, won = false;
-  let enemies = [], enemyBullets = [], taserLines = [], decorations = [];
+  let enemies = [], enemyBullets = [], taserLines = [], decorations = [], flashes = [];
   const held = {};
 
   const player = {
-    x: 100, y: 350, radius: 22, speed: 4.2,
+    x: 100, y: 350, radius: 20, speed: 4.2,
     health: 100, ammo: 5, maxAmmo: 5,
     ready: true, reloading: false, reloadStart: 0, reloadEnd: 0,
     facing: "down", moving: false
   };
   const pickup = { x: 0, y: 0, radius: 28, active: true };
-  const mission = { x: 0, y: 0, w: 110, h: 110 };
+  const mission = { x: 0, y: 0, w: 120, h: 120 };
 
   const walls = [
     { x: .17, y: .10, w: .05, h: .30 }, { x: .17, y: .53, w: .05, h: .31 },
@@ -28,15 +30,12 @@
 
   const assets = {
     player: { up: null, down: null, left: null, right: null },
-    enemies: [],
+    enemy: { up: null, down: null, left: null, right: null },
     mapObjects: [],
-    taserMagazine: null,
-    medkit: null,
     ground: null,
-    wallH: null,
-    wallV: null,
-    wallL: null,
-    wallBlock: null
+    wallH: null, wallV: null, wallBlock: null,
+    taserMagazine: null, muzzle: null, taserBolt: null, stunAura: null,
+    marker: null, missionFlag: null, missionZone: null
   };
 
   function pxWalls() {
@@ -44,7 +43,7 @@
   }
 
   function loadImage(src) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
@@ -53,61 +52,43 @@
   }
 
   async function loadAssets() {
-    let manifest;
-    try {
-      manifest = await fetch("assets/manifest.json").then(r => r.json());
-    } catch {
-      manifest = {
-        player: {
-          up: "assets/player/up.png",
-          down: "assets/player/down.png",
-          left: "assets/player/left.png",
-          right: "assets/player/right.png"
-        },
-        sprites: { taser_magazine: "assets/sprites/taser_magazine.png", medkit: "assets/sprites/medkit.png" },
-        enemies: [],
-        mapObjects: []
-      };
-    }
+    let manifest = {};
+    try { manifest = await fetch("assets/manifest.json").then(r => r.json()); } catch {}
 
-    const p = manifest.player || {};
-    assets.player.up = await loadImage(p.up);
-    assets.player.down = await loadImage(p.down);
-    assets.player.left = await loadImage(p.left);
-    assets.player.right = await loadImage(p.right);
+    assets.player.up = await loadImage("assets/player/up.png");
+    assets.player.down = await loadImage("assets/player/down.png");
+    assets.player.left = await loadImage("assets/player/left.png");
+    assets.player.right = await loadImage("assets/player/right.png");
 
-    const spr = manifest.sprites || {};
-    assets.taserMagazine = await loadImage(spr.taser_magazine || "assets/sprites/taser_magazine.png");
-    assets.medkit = await loadImage(spr.medkit || "assets/sprites/medkit.png");
-    assets.ground = await loadImage(spr.cartoon_grass || "assets/sprites/cartoon_grass.png");
-    assets.wallH = await loadImage(spr.wall_concrete_h || "assets/sprites/wall_concrete_h.png");
-    assets.wallV = await loadImage(spr.wall_concrete_v || "assets/sprites/wall_concrete_v.png");
-    assets.wallL = await loadImage(spr.wall_concrete_l || "assets/sprites/wall_concrete_l.png");
-    assets.wallBlock = await loadImage(spr.wall_concrete_block || "assets/sprites/wall_concrete_block.png");
+    assets.enemy.up = await loadImage("assets/sprites/enemies/up.png");
+    assets.enemy.down = await loadImage("assets/sprites/enemies/down.png");
+    assets.enemy.left = await loadImage("assets/sprites/enemies/left.png");
+    assets.enemy.right = await loadImage("assets/sprites/enemies/right.png");
 
-    assets.enemies = [];
-    for (const src of (manifest.enemies || [])) {
-      const img = await loadImage(src);
-      if (img) assets.enemies.push(img);
-    }
+    assets.ground = await loadImage("assets/sprites/ground_field.png");
+    assets.wallH = await loadImage("assets/sprites/wall_concrete_h.png");
+    assets.wallV = await loadImage("assets/sprites/wall_concrete_v.png");
+    assets.wallBlock = await loadImage("assets/sprites/wall_concrete_block.png");
 
-    // Decorations: new obstacle set, skip concrete wall pieces (used by wall system)
-    assets.mapObjects = [];
+    assets.taserMagazine = await loadImage("assets/sprites/vfx/pickup.png")
+      || await loadImage("assets/sprites/taser_magazine.png");
+    assets.muzzle = await loadImage("assets/sprites/vfx/muzzle.png");
+    assets.taserBolt = await loadImage("assets/sprites/vfx/taser_bolt.png");
+    assets.stunAura = await loadImage("assets/sprites/vfx/stun_aura.png");
+    assets.marker = await loadImage("assets/sprites/vfx/enemy_marker.png")
+      || await loadImage("assets/sprites/vfx/enemy_marker2.png");
+    assets.missionFlag = await loadImage("assets/sprites/vfx/mission_flag.png");
+    assets.missionZone = await loadImage("assets/sprites/vfx/mission_zone.png");
+
     const wallSkip = new Set([
       "assets/sprites/obstacles/obs_01.png",
       "assets/sprites/obstacles/obs_02.png",
       "assets/sprites/obstacles/obs_03.png",
       "assets/sprites/obstacles/obs_04.png"
     ]);
-    const objs = (manifest.obstacles && manifest.obstacles.length)
-      ? manifest.obstacles.filter(s => !wallSkip.has(s))
-      : (manifest.mapObjects || []).slice(0, 24);
+    const objs = (manifest.obstacles || []).filter(s => !wallSkip.has(s));
     const loaded = await Promise.all(objs.map(loadImage));
-    for (const img of loaded) {
-      if (img && img.width >= 24 && img.height >= 24) {
-        assets.mapObjects.push(img);
-      }
-    }
+    assets.mapObjects = loaded.filter(img => img && img.width >= 24);
   }
 
   function resize() {
@@ -115,15 +96,14 @@
     canvas.height = innerHeight;
     width = canvas.width;
     height = canvas.height;
-    mission.x = width - 145;
-    mission.y = height - 145;
+    mission.x = width - 160;
+    mission.y = height - 160;
   }
 
   function circleRectCollision(x, y, r, rect) {
     const cx = Math.max(rect.x, Math.min(x, rect.x + rect.w));
     const cy = Math.max(rect.y, Math.min(y, rect.y + rect.h));
-    const dx = x - cx, dy = y - cy;
-    return dx * dx + dy * dy < r * r;
+    return (x - cx) ** 2 + (y - cy) ** 2 < r * r;
   }
 
   function blocked(x, y, r) {
@@ -131,7 +111,7 @@
     for (const wall of pxWalls()) if (circleRectCollision(x, y, r, wall)) return true;
     for (const d of decorations) {
       if (!d.solid) continue;
-      const rect = { x: d.x - d.w * 0.35, y: d.y - d.h * 0.25, w: d.w * 0.7, h: d.h * 0.55 };
+      const rect = { x: d.x - d.w * 0.35, y: d.y - d.h * 0.2, w: d.w * 0.7, h: d.h * 0.5 };
       if (circleRectCollision(x, y, r, rect)) return true;
     }
     return false;
@@ -139,8 +119,8 @@
 
   function validSpawn(x, y, r = 28) {
     if (blocked(x, y, r)) return false;
-    if (Math.hypot(x - player.x, y - player.y) < 160) return false;
-    if (x > mission.x - 30 && y > mission.y - 30) return false;
+    if (Math.hypot(x - player.x, y - player.y) < 170) return false;
+    if (x > mission.x - 40 && y > mission.y - 40) return false;
     return true;
   }
 
@@ -161,17 +141,12 @@
   function placeDecorations() {
     decorations = [];
     if (!assets.mapObjects.length) return;
-    const count = Math.min(14, assets.mapObjects.length);
-    const pool = assets.mapObjects.slice();
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
+    const pool = assets.mapObjects.slice().sort(() => Math.random() - 0.5);
+    const count = Math.min(12, pool.length);
     for (let i = 0; i < count; i++) {
       const img = pool[i];
-      const p = randomFreePosition(34);
-      // keep readable size — new cartoon sheet is high-res
-      const targetH = 48 + Math.random() * 36;
+      const p = randomFreePosition(36);
+      const targetH = 52 + Math.random() * 34;
       const scale = targetH / img.height;
       decorations.push({
         img, x: p.x, y: p.y,
@@ -181,23 +156,22 @@
     }
   }
 
+  function facingFromDelta(dx, dy) {
+    if (!dx && !dy) return "down";
+    if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? "left" : "right";
+    return dy < 0 ? "up" : "down";
+  }
+
   function createEnemies() {
     enemies = [];
     for (let i = 0; i < 6; i++) {
       const p = randomFreePosition(22);
       enemies.push({
-        x: p.x, y: p.y, radius: 20,
-        speed: 0.75 + Math.random() * 0.3,
+        x: p.x, y: p.y, radius: 18,
+        speed: 0.72 + Math.random() * 0.28,
         state: "active", stunUntil: 0,
-        shootCooldown: 35 + Math.floor(Math.random() * 80),
-        direction: 0,
-        sprite: assets.enemies.length
-          ? assets.enemies[Math.floor(Math.random() * assets.enemies.length)]
-          : null,
-        skin: {
-          body: ["#3a3a3a", "#5a4a2a", "#2f4a2f", "#4a1a1a", "#1a2a4a"][i % 5],
-          vest: "#222", helmet: "#111", skin: "#c99770", weapon: "#000"
-        }
+        shootCooldown: 40 + Math.floor(Math.random() * 70),
+        facing: "down"
       });
     }
     document.getElementById("enemyTotal").textContent = enemies.length;
@@ -209,12 +183,6 @@
     const mx = dx / len * speed, my = dy / len * speed;
     if (!blocked(entity.x + mx, entity.y, r)) entity.x += mx;
     if (!blocked(entity.x, entity.y + my, r)) entity.y += my;
-  }
-
-  function facingFromDelta(dx, dy) {
-    if (!dx && !dy) return player.facing;
-    if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? "left" : "right";
-    return dy < 0 ? "up" : "down";
   }
 
   function movePlayer() {
@@ -246,6 +214,7 @@
     if (!d) return;
     const s = 5.2;
     enemyBullets.push({ x: e.x, y: e.y, vx: dx / d * s, vy: dy / d * s, radius: 5, life: 240 });
+    flashes.push({ x: e.x + dx / d * 22, y: e.y + dy / d * 22, life: 6, ang: Math.atan2(dy, dx) });
   }
 
   function updateEnemies() {
@@ -260,12 +229,12 @@
         } else continue;
       }
       const dx = player.x - e.x, dy = player.y - e.y, d = Math.hypot(dx, dy);
-      e.direction = Math.atan2(dy, dx);
-      if (d < 650 && d > 150) moveEntity(e, dx, dy, e.speed, e.radius);
+      e.facing = facingFromDelta(dx, dy);
+      if (d < 650 && d > 140) moveEntity(e, dx, dy, e.speed, e.radius);
       e.shootCooldown--;
       if (d < 400 && d > 70 && e.shootCooldown <= 0 && !lineHitsWall(e.x, e.y, player.x, player.y)) {
         enemyShoot(e);
-        e.shootCooldown = 70 + Math.floor(Math.random() * 60);
+        e.shootCooldown = 70 + Math.floor(Math.random() * 55);
       }
     }
   }
@@ -295,8 +264,8 @@
     if (gameOver || won) return;
     if (player.reloading) { setMessage("🔄 עדיין טוען..."); return; }
     if (!player.ready) { setMessage("🔄 חובה לטעון מחדש עם R"); return; }
-    if (player.ammo <= 0) { setMessage("⚠️ אין יריות! צריך להגיע למחסנית"); return; }
-    let target = null, closest = 220;
+    if (player.ammo <= 0) { setMessage("⚠️ אין יריות! מצא מחסנית"); return; }
+    let target = null, closest = 230;
     for (const e of enemies) {
       if (e.state !== "active") continue;
       const d = Math.hypot(e.x - player.x, e.y - player.y);
@@ -309,17 +278,18 @@
     target.stunUntil = performance.now() + 1000;
     player.ammo--;
     player.ready = false;
-    // Face the shot
     player.facing = facingFromDelta(target.x - player.x, target.y - player.y);
-    taserLines.push({ x1: player.x, y1: player.y, x2: target.x, y2: target.y, life: 8 });
+    taserLines.push({
+      x1: player.x, y1: player.y, x2: target.x, y2: target.y,
+      life: 10, target
+    });
     score += 25;
     updateHUD();
-    setMessage(player.ammo > 0 ? "⚡ נוטרל! עכשיו R לטעינה מחדש" : "⚡ ירייה אחרונה! צריך למצוא מחסנית");
+    setMessage(player.ammo > 0 ? "⚡ נוטרל! עכשיו R לטעינה" : "⚡ ירייה אחרונה — מצא מחסנית");
   }
 
   function reloadTaser() {
-    if (gameOver || won) return;
-    if (player.reloading) return;
+    if (gameOver || won || player.reloading) return;
     if (player.ready) { setMessage("הטייזר כבר מוכן"); return; }
     if (player.ammo <= 0) { setMessage("⚠️ אין תחמושת — מצא מחסנית"); return; }
     player.reloading = true;
@@ -347,7 +317,7 @@
     if (gameOver || won) return;
     for (const e of enemies) {
       if (e.state !== "stunned") continue;
-      if (Math.hypot(e.x - player.x, e.y - player.y) < 60) {
+      if (Math.hypot(e.x - player.x, e.y - player.y) < 62) {
         e.state = "arrested";
         arrested++;
         score += 100;
@@ -370,7 +340,7 @@
       document.getElementById("reloadBar").style.width = "0%";
       score += 50;
       updateHUD();
-      setMessage("🔋 מצאת מחסנית — 5 יריות זמינות!");
+      setMessage("🔋 מחסנית! 5 יריות זמינות");
       placePickup();
     }
   }
@@ -390,54 +360,93 @@
 
   function updateHUD() {
     document.getElementById("health").textContent = player.health;
+    document.getElementById("healthBar").style.width = player.health + "%";
     document.getElementById("ammo").textContent = player.ammo;
     document.getElementById("arrested").textContent = arrested;
     document.getElementById("score").textContent = score;
     document.getElementById("reloadState").textContent =
       player.reloading ? "טוען..." : player.ready ? "מוכן" : player.ammo > 0 ? "צריך R" : "ריק";
+    const bolts = document.getElementById("ammoBolts");
+    bolts.textContent = "⚡".repeat(player.ammo) + "·".repeat(Math.max(0, player.maxAmmo - player.ammo));
+  }
+
+  function drawShadow(x, y, rx, ry) {
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,.28)";
+    ctx.beginPath();
+    ctx.ellipse(x, y + ry * 0.55, rx, ry * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   function drawGround() {
     if (assets.ground) {
-      const tile = 160;
-      for (let x = 0; x < width; x += tile) {
-        for (let y = 0; y < height; y += tile) {
-          ctx.drawImage(assets.ground, x, y, tile + 1, tile + 1);
+      const tile = 220;
+      for (let x = -20; x < width; x += tile) {
+        for (let y = -20; y < height; y += tile) {
+          ctx.drawImage(assets.ground, x, y, tile + 2, tile + 2);
         }
       }
     } else {
-      ctx.fillStyle = "#5f7f45";
+      ctx.fillStyle = "#5a7a3e";
       ctx.fillRect(0, 0, width, height);
     }
+  }
+
+  function drawMission() {
+    const ready = arrested === enemies.length;
+    if (assets.missionZone) {
+      ctx.globalAlpha = ready ? 0.95 : 0.7;
+      ctx.drawImage(assets.missionZone, mission.x, mission.y, mission.w, mission.h);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = "#ffe566";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(mission.x, mission.y, mission.w, mission.h);
+      ctx.setLineDash([]);
+      ctx.fillStyle = ready ? "rgba(255,214,0,.35)" : "rgba(144,124,44,.28)";
+      ctx.fillRect(mission.x, mission.y, mission.w, mission.h);
+    }
+    if (assets.missionFlag) {
+      const fh = 54;
+      const fw = assets.missionFlag.width * (fh / assets.missionFlag.height);
+      ctx.drawImage(assets.missionFlag, mission.x + mission.w / 2 - fw / 2, mission.y + 18, fw, fh);
+    }
+    ctx.fillStyle = "#111";
+    ctx.font = "bold 13px Segoe UI, Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("נקודת משימה", mission.x + mission.w / 2, mission.y + mission.h - 14);
   }
 
   function drawWallSprite(w) {
     const horizontal = w.w >= w.h;
     const img = horizontal
       ? (assets.wallH || assets.wallBlock)
-      : (assets.wallV || assets.wallH || assets.wallBlock);
+      : (assets.wallBlock || assets.wallV || assets.wallH);
     if (!img) {
       ctx.fillStyle = "#6b6f76";
       ctx.fillRect(w.x, w.y, w.w, w.h);
       return;
     }
-    // Stretch concrete piece to cover the wall footprint (keeps cartoon look)
-    const pad = Math.max(6, Math.min(w.w, w.h) * 0.35);
-    ctx.drawImage(img, w.x - pad * 0.15, w.y - pad * 0.55, w.w + pad * 0.3, w.h + pad);
-  }
 
-  function drawMission() {
-    ctx.fillStyle = arrested === enemies.length ? "rgba(255,214,0,.55)" : "rgba(144,124,44,.45)";
-    ctx.fillRect(mission.x, mission.y, mission.w, mission.h);
-    ctx.strokeStyle = "#ffe566";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([8, 6]);
-    ctx.strokeRect(mission.x + 4, mission.y + 4, mission.w - 8, mission.h - 8);
-    ctx.setLineDash([]);
-    ctx.fillStyle = "#111";
-    ctx.font = "bold 14px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("משימה", mission.x + mission.w / 2, mission.y + mission.h / 2);
+    // Tile concrete blocks along the wall instead of stretching one tall sprite
+    if (horizontal) {
+      const th = Math.max(w.h * 1.8, 42);
+      const tw = th * (img.width / img.height);
+      for (let x = w.x; x < w.x + w.w - 4; x += tw * 0.72) {
+        const dw = Math.min(tw, w.x + w.w - x + tw * 0.15);
+        ctx.drawImage(img, x - 4, w.y + w.h - th + 6, dw, th);
+      }
+    } else {
+      const tw = Math.max(w.w * 1.9, 38);
+      const th = tw * (img.height / img.width) * 0.85;
+      const block = assets.wallBlock || img;
+      const bh = tw * (block.height / block.width);
+      for (let y = w.y; y < w.y + w.h - 2; y += bh * 0.62) {
+        ctx.drawImage(block, w.x + w.w / 2 - tw / 2, y - bh * 0.35, tw, bh);
+      }
+    }
   }
 
   function drawSpriteCentered(img, x, y, targetH) {
@@ -449,116 +458,161 @@
   }
 
   function drawPlayer() {
-    const img = assets.player[player.facing] || assets.player.down || assets.player.up;
-    if (!drawSpriteCentered(img, player.x, player.y, 56)) {
-      ctx.save();
-      ctx.translate(player.x, player.y);
-      ctx.fillStyle = "#326ca8";
-      ctx.beginPath(); ctx.ellipse(0, 5, 14, 20, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#183c60"; ctx.fillRect(-11, -4, 22, 16);
-      ctx.fillStyle = "#d7aa7d"; ctx.beginPath(); ctx.arc(0, -13, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
+    drawShadow(player.x, player.y, 16, 14);
+    const img = assets.player[player.facing] || assets.player.down;
+    drawSpriteCentered(img, player.x, player.y, 58);
   }
 
   function drawEnemy(e) {
-    if (e.state === "arrested") ctx.globalAlpha = 0.5;
-    const drawn = e.sprite && drawSpriteCentered(e.sprite, e.x, e.y, 50);
-    if (!drawn) {
-      const s = e.skin;
-      ctx.save();
-      ctx.translate(e.x, e.y);
-      ctx.rotate(e.direction + Math.PI / 2);
-      ctx.fillStyle = s.body;
-      ctx.fillRect(-11, 9, 8, 15); ctx.fillRect(3, 9, 8, 15);
-      ctx.beginPath(); ctx.ellipse(0, 2, 15, 20, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = s.vest; ctx.fillRect(-12, -5, 24, 19);
-      ctx.fillStyle = s.skin; ctx.beginPath(); ctx.arc(0, -17, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = s.helmet; ctx.beginPath(); ctx.arc(0, -19, 10, Math.PI, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = s.weapon; ctx.fillRect(8, -15, 4, 30);
-      ctx.restore();
-    }
+    if (e.state === "arrested") ctx.globalAlpha = 0.45;
+    drawShadow(e.x, e.y, 15, 13);
+    const img = assets.enemy[e.facing] || assets.enemy.down;
+    drawSpriteCentered(img, e.x, e.y, 52);
     ctx.globalAlpha = 1;
+
+    if (e.state === "active" && assets.marker) {
+      const mh = 16;
+      const mw = assets.marker.width * (mh / assets.marker.height);
+      ctx.drawImage(assets.marker, e.x - mw / 2, e.y - 42, mw, mh);
+    }
     if (e.state === "stunned") {
+      if (assets.stunAura) {
+        ctx.globalAlpha = 0.75;
+        drawSpriteCentered(assets.stunAura, e.x, e.y, 70);
+        ctx.globalAlpha = 1;
+      }
       ctx.fillStyle = "#00e5ff";
-      ctx.font = "25px Arial";
+      ctx.font = "22px Segoe UI";
       ctx.textAlign = "center";
-      ctx.fillText("⚡", e.x, e.y - 34);
+      ctx.fillText("⚡", e.x, e.y - 38);
     }
     if (e.state === "arrested") {
-      ctx.font = "20px Arial";
+      ctx.font = "18px Segoe UI";
       ctx.textAlign = "center";
-      ctx.fillText("🔒", e.x, e.y - 30);
+      ctx.fillText("🔒", e.x, e.y - 34);
+    }
+  }
+
+  function drawPickup() {
+    if (!pickup.active) return;
+    drawShadow(pickup.x, pickup.y, 18, 12);
+    const bob = Math.sin(performance.now() / 280) * 4;
+    if (assets.taserMagazine) {
+      ctx.save();
+      ctx.shadowColor = "#ffe600";
+      ctx.shadowBlur = 22;
+      drawSpriteCentered(assets.taserMagazine, pickup.x, pickup.y + bob, 48);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = "#ffd600";
+      ctx.fillRect(pickup.x - 16, pickup.y - 12 + bob, 32, 24);
     }
   }
 
   function drawBullets() {
     for (const b of enemyBullets) {
       ctx.beginPath();
-      ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-      ctx.fillStyle = "#ffd800";
-      ctx.fill();
-      ctx.strokeStyle = "#ff9d00";
-      ctx.lineWidth = 2;
+      ctx.moveTo(b.x - b.vx * 2, b.y - b.vy * 2);
+      ctx.lineTo(b.x + b.vx, b.y + b.vy);
+      ctx.strokeStyle = "#ffd800";
+      ctx.lineWidth = 3;
       ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff3a0";
+      ctx.fill();
+    }
+  }
+
+  function drawFlashes() {
+    for (const f of flashes) {
+      if (assets.muzzle) {
+        ctx.save();
+        ctx.translate(f.x, f.y);
+        ctx.rotate(f.ang);
+        const h = 28;
+        const w = assets.muzzle.width * (h / assets.muzzle.height);
+        ctx.globalAlpha = Math.min(1, f.life / 4);
+        ctx.drawImage(assets.muzzle, -w * 0.2, -h / 2, w, h);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = "rgba(255,220,60,.85)";
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 
   function drawTaser() {
     for (const l of taserLines) {
-      ctx.beginPath();
-      ctx.moveTo(l.x1, l.y1);
-      ctx.lineTo(l.x2, l.y2);
-      ctx.strokeStyle = "#00eaff";
-      ctx.lineWidth = 4;
-      ctx.stroke();
+      if (assets.taserBolt) {
+        const dx = l.x2 - l.x1, dy = l.y2 - l.y1;
+        const len = Math.hypot(dx, dy) || 1;
+        const ang = Math.atan2(dy, dx);
+        ctx.save();
+        ctx.translate(l.x1, l.y1);
+        ctx.rotate(ang);
+        ctx.globalAlpha = Math.min(1, l.life / 6);
+        ctx.drawImage(assets.taserBolt, 0, -14, len, 28);
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(l.x1, l.y1);
+        ctx.lineTo(l.x2, l.y2);
+        ctx.strokeStyle = "#00eaff";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      }
     }
   }
 
-  function drawPickup() {
-    if (!pickup.active) return;
-    if (assets.taserMagazine) {
-      ctx.save();
-      ctx.shadowColor = "#ffe600";
-      ctx.shadowBlur = 18;
-      drawSpriteCentered(assets.taserMagazine, pickup.x, pickup.y, 52);
-      ctx.restore();
-      return;
-    }
-    ctx.fillStyle = "#ffd600";
-    ctx.fillRect(pickup.x - 18, pickup.y - 14, 36, 28);
-    ctx.fillStyle = "#111";
-    ctx.fillRect(pickup.x - 14, pickup.y - 10, 20, 20);
-  }
-
-  // Lower on screen = drawn later = appears in front (matches 3/4 camera)
   function drawWorldSorted() {
     const items = [];
-
-    for (const w of pxWalls()) {
-      items.push({ footY: w.y + w.h, kind: "wall", w });
-    }
-    for (const d of decorations) {
-      items.push({ footY: d.y + d.h * 0.42, kind: "deco", d });
-    }
-    for (const e of enemies) {
-      items.push({ footY: e.y + e.radius, kind: "enemy", e });
-    }
-    if (pickup.active) {
-      items.push({ footY: pickup.y + 18, kind: "pickup" });
-    }
+    for (const w of pxWalls()) items.push({ footY: w.y + w.h, kind: "wall", w });
+    for (const d of decorations) items.push({ footY: d.y + d.h * 0.42, kind: "deco", d });
+    for (const e of enemies) items.push({ footY: e.y + e.radius, kind: "enemy", e });
+    if (pickup.active) items.push({ footY: pickup.y + 18, kind: "pickup" });
     items.push({ footY: player.y + player.radius, kind: "player" });
-
     items.sort((a, b) => a.footY - b.footY);
 
     for (const it of items) {
       if (it.kind === "wall") drawWallSprite(it.w);
       else if (it.kind === "deco") {
+        drawShadow(it.d.x, it.d.y, it.d.w * 0.28, it.d.h * 0.18);
         ctx.drawImage(it.d.img, it.d.x - it.d.w / 2, it.d.y - it.d.h / 2, it.d.w, it.d.h);
       } else if (it.kind === "enemy") drawEnemy(it.e);
       else if (it.kind === "pickup") drawPickup();
       else if (it.kind === "player") drawPlayer();
     }
+  }
+
+  function drawMinimap() {
+    const mw = minimap.width, mh = minimap.height;
+    mctx.clearRect(0, 0, mw, mh);
+    mctx.fillStyle = "#1a2a1a";
+    mctx.fillRect(0, 0, mw, mh);
+    const sx = mw / width, sy = mh / height;
+    mctx.fillStyle = "#5a6570";
+    for (const w of pxWalls()) mctx.fillRect(w.x * sx, w.y * sy, Math.max(2, w.w * sx), Math.max(2, w.h * sy));
+    mctx.strokeStyle = "#ffe566";
+    mctx.strokeRect(mission.x * sx, mission.y * sy, mission.w * sx, mission.h * sy);
+    for (const e of enemies) {
+      if (e.state === "arrested") mctx.fillStyle = "#7dffa0";
+      else if (e.state === "stunned") mctx.fillStyle = "#55e0ff";
+      else mctx.fillStyle = "#ff3b3b";
+      mctx.beginPath();
+      mctx.arc(e.x * sx, e.y * sy, 3, 0, Math.PI * 2);
+      mctx.fill();
+    }
+    mctx.fillStyle = "#fff";
+    mctx.beginPath();
+    mctx.moveTo(player.x * sx, player.y * sy - 4);
+    mctx.lineTo(player.x * sx + 3, player.y * sy + 3);
+    mctx.lineTo(player.x * sx - 3, player.y * sy + 3);
+    mctx.fill();
+    mctx.strokeStyle = "rgba(255,255,255,.25)";
+    mctx.strokeRect(0.5, 0.5, mw - 1, mh - 1);
   }
 
   function draw() {
@@ -567,7 +621,9 @@
     drawMission();
     drawWorldSorted();
     drawBullets();
+    drawFlashes();
     drawTaser();
+    drawMinimap();
     if (gameOver || won) {
       ctx.fillStyle = "rgba(0,0,0,.28)";
       ctx.fillRect(0, 0, width, height);
@@ -583,6 +639,8 @@
     checkMission();
     taserLines.forEach(l => l.life--);
     taserLines = taserLines.filter(l => l.life > 0);
+    flashes.forEach(f => f.life--);
+    flashes = flashes.filter(f => f.life > 0);
   }
 
   function loop() {
@@ -592,15 +650,15 @@
   }
 
   function restartGame() {
-    player.x = 100;
-    player.y = height / 2;
+    player.x = 110;
+    player.y = height * 0.55;
     player.health = 100;
     player.ammo = 5;
     player.ready = true;
     player.reloading = false;
     player.facing = "down";
     score = 0; arrested = 0;
-    enemyBullets = []; taserLines = [];
+    enemyBullets = []; taserLines = []; flashes = [];
     gameOver = false; won = false;
     createEnemies();
     placeDecorations();
@@ -620,8 +678,8 @@
     resize();
     player.x = px * width;
     player.y = py * height;
-    mission.x = width - 145;
-    mission.y = height - 145;
+    mission.x = width - 160;
+    mission.y = height - 160;
   });
 
   addEventListener("keydown", e => {

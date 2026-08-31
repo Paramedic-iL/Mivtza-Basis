@@ -5,35 +5,52 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>מבצע בסיס</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=vision1">
 </head>
 <body>
 <canvas id="game"></canvas>
 
-<div id="hud" class="panel">
-  <b>🪖 מבצע בסיס</b><br>
-  ❤️ חיים: <span id="health">100</span><br>
-  ⚡ יריות טייזר: <span id="ammo">5</span>/5<br>
-  🔄 מצב: <span id="reloadState">מוכן</span><br>
-  👮 נעצרו: <span id="arrested">0</span>/<span id="enemyTotal">0</span><br>
-  🎯 ניקוד: <span id="score">0</span>
-  <div id="reloadBarWrap"><div id="reloadBar"></div></div>
+<div id="hudTopLeft" class="panel hud-player">
+  <img id="portrait" src="assets/sprites/player_portrait.png" alt="">
+  <div class="hud-player-stats">
+    <div class="row"><span class="lbl">חיים</span><div class="bar"><div id="healthBar"></div></div><span id="health">100</span></div>
+    <div class="row bolts" id="ammoBolts" title="יריות"></div>
+    <div class="row small">מחסנית <b id="ammo">5</b>/5 · <span id="reloadState">מוכן</span></div>
+    <div id="reloadBarWrap"><div id="reloadBar"></div></div>
+  </div>
 </div>
 
 <div id="message" class="panel">טוען...</div>
-<button id="restart" class="btn" type="button">🔄 משחק חדש</button>
-<button id="helpBtn" class="btn" type="button">❓ מקרא</button>
+
+<div id="hudTopRight" class="hud-right">
+  <canvas id="minimap" width="120" height="120"></canvas>
+  <div class="hud-right-btns">
+    <button id="helpBtn" class="btn blue" type="button">❓ עזרה</button>
+    <button id="restart" class="btn yellow" type="button">🔄 משחק חדש</button>
+  </div>
+</div>
 
 <div id="help" class="panel">
-  <b>מקרא</b><br><br>
-  תנועה: WASD / חצים — עובד גם במקלדת עברית.<br>
+  <b>שליטה</b><br>
+  תנועה: WASD / חצים<br>
   ⚡ טייזר: Space<br>
-  🔄 טעינה מחדש: R — חצי שנייה<br>
+  🔄 טעינה: R<br>
   🤝 מעצר: E<br><br>
-  אחרי כל יריית טייזר חייבים לטעון מחדש.<br>
-  יש 5 יריות. כשנגמר — מצא את המחסנית הצהובה.<br>
-  טייזר מנטרל אויב לשנייה אחת.<br>
-  כדור אויב מוריד 10 חיים.
+  אחרי כל ירייה — טען מחדש.<br>
+  5 יריות. כשנגמר — מצא מחסנית צהובה.<br>
+  טייזר מנטרל לשנייה. כדור אויב = ‎-10 חיים.
+</div>
+
+<div id="hudBottomLeft" class="panel controls-panel">
+  <b>שליטה</b><br>
+  WASD / חצים — תנועה<br>
+  Space — טייזר · E — עצור · R — טעינה
+</div>
+
+<div id="hudBottomRight" class="panel score-panel">
+  נטרול: +25 · מעצר: +100 · משימה: +500<br>
+  <b>ניקוד:</b> <span id="score">0</span>
+  · <b>עצורים:</b> <span id="arrested">0</span>/<span id="enemyTotal">0</span>
 </div>
 
 <div id="mobile">
@@ -46,6 +63,6 @@
   <button class="mobile" id="reload" type="button">R<br>טעינה</button>
 </div>
 
-<script src="game.js"></script>
+<script src="game.js?v=vision1"></script>
 </body>
 </html>

@@ -20,7 +20,9 @@
     "wall_concrete_h": "assets/sprites/wall_concrete_h.png",
     "wall_concrete_v": "assets/sprites/wall_concrete_v.png",
     "wall_concrete_l": "assets/sprites/wall_concrete_l.png",
-    "wall_concrete_block": "assets/sprites/wall_concrete_block.png"
+    "wall_concrete_block": "assets/sprites/wall_concrete_block.png",
+    "ground_field": "assets/sprites/ground_field.png",
+    "player_portrait": "assets/sprites/player_portrait.png"
   },
   "enemies": [
     "assets/sprites/enemy_0.png",
