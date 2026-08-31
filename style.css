@@ -48,16 +48,21 @@ canvas#game{display:block;width:100%;height:100%}
 }
 #hurtVignette.on{display:block}
 
-#winBanner{
+#winBanner, #loseBanner{
   display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;
   background:rgba(0,0,0,.4);pointer-events:none;
 }
-#winBanner.on{display:flex !important}
-#winBox{
+#winBanner.on, #loseBanner.on{display:flex !important}
+#winBox, #loseBox{
   width:min(420px,82vw);padding:40px 28px;border-radius:22px;text-align:center;
-  background:#142338;border:5px solid #ffd54f;
   box-shadow:0 16px 40px rgba(0,0,0,.65);font-size:clamp(28px,6vw,44px);font-weight:800;
   line-height:1.4;color:#fff;text-shadow:0 2px 0 #000;
+}
+#winBox{
+  background:#142338;border:5px solid #ffd54f;
+}
+#loseBox{
+  background:#2a1218;border:5px solid #ff4d4d;
 }
 
 #help{

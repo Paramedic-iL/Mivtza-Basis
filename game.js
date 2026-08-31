@@ -246,7 +246,7 @@
     return entity.y + 10;
   }
 
-  const ASSET_V = "ff20";
+  const ASSET_V = "ff21";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -595,7 +595,8 @@
         setMessage("💥 נפגעת מכדור! ‎-10 חיים");
         if (player.health <= 0) {
           gameOver = true;
-          setMessage("💀 נפלת במשימה — לחץ משחק חדש");
+          showLoseBanner(true);
+          setMessage("💀 לחץ משחק חדש");
         }
       }
     }
@@ -777,6 +778,13 @@
 
   function showWinBanner(on) {
     const el = document.getElementById("winBanner");
+    if (!el) return;
+    el.classList.toggle("on", !!on);
+    el.style.display = on ? "flex" : "none";
+  }
+
+  function showLoseBanner(on) {
+    const el = document.getElementById("loseBanner");
     if (!el) return;
     el.classList.toggle("on", !!on);
     el.style.display = on ? "flex" : "none";
@@ -1113,6 +1121,7 @@
     enemyBullets = []; taserLines = []; flashes = [];
     gameOver = false; won = false;
     showWinBanner(false);
+    showLoseBanner(false);
     decorations = [];
     generateWalls();       // rules 1–3
     placeDecorations();    // rule 4
