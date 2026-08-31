@@ -19,14 +19,133 @@
   const pickup = { x: 0, y: 0, radius: 28, active: true };
   const healthBox = { x: 0, y: 0, radius: 28, active: true };
 
-  const walls = [
-    { x: .17, y: .10, w: .05, h: .30 }, { x: .17, y: .53, w: .05, h: .31 },
-    { x: .30, y: .19, w: .18, h: .07 }, { x: .34, y: .43, w: .05, h: .30 },
-    { x: .51, y: .09, w: .05, h: .25 }, { x: .51, y: .49, w: .05, h: .35 },
-    { x: .63, y: .30, w: .18, h: .07 }, { x: .66, y: .62, w: .18, h: .07 },
-    { x: .82, y: .12, w: .05, h: .31 }, { x: .88, y: .50, w: .09, h: .07 },
-    { x: .08, y: .72, w: .16, h: .06 }, { x: .72, y: .15, w: .08, h: .05 }
-  ];
+  // Walls are rebuilt each round — see generateWalls()
+  let walls = [];
+
+  // Map layout rules (son):
+  // 1) Player can reach every walkable spot
+  // 2) Each wall run = at least 2 adjacent blocks (no single gaps for bullets)
+  // 3) Equal count of vertical and horizontal wall runs
+  // 4) Decorations only after walls pass 1–3
+  const WALL_UNIT_V = { w: 0.048, h: 0.11 }; // one vertical block
+  const WALL_UNIT_H = { w: 0.12, h: 0.055 };  // one horizontal block
+
+  function rectsOverlap(a, b, pad = 0.02) {
+    return !(
+      a.x + a.w + pad <= b.x ||
+      b.x + b.w + pad <= a.x ||
+      a.y + a.h + pad <= b.y ||
+      b.y + b.h + pad <= a.y
+    );
+  }
+
+  function buildWallRun(orient, blocks, x, y) {
+    const n = Math.max(2, blocks);
+    if (orient === "v") {
+      return { x, y, w: WALL_UNIT_V.w, h: WALL_UNIT_V.h * n, orient: "v", blocks: n };
+    }
+    return { x, y, w: WALL_UNIT_H.w * n, h: WALL_UNIT_H.h, orient: "h", blocks: n };
+  }
+
+  function wallsCollide(list, candidate) {
+    return list.some(w => rectsOverlap(w, candidate, 0.035));
+  }
+
+  function tryBuildWallLayout() {
+    const pairCount = 2 + Math.floor(Math.random() * 3); // 2–4 of each (rule 3)
+    const built = [];
+    const margin = 0.07;
+    const spawnSafe = { x: 0.02, y: 0.35, w: 0.18, h: 0.40 };
+
+    function placeOne(orient) {
+      for (let tries = 0; tries < 70; tries++) {
+        const blocks = 2 + Math.floor(Math.random() * 3); // 2–4 adjacent blocks
+        let x, y;
+        if (orient === "v") {
+          x = margin + Math.random() * (1 - margin * 2 - WALL_UNIT_V.w);
+          y = margin + Math.random() * (1 - margin * 2 - WALL_UNIT_V.h * blocks);
+        } else {
+          x = margin + Math.random() * (1 - margin * 2 - WALL_UNIT_H.w * blocks);
+          y = margin + Math.random() * (1 - margin * 2 - WALL_UNIT_H.h);
+        }
+        const run = buildWallRun(orient, blocks, x, y);
+        if (rectsOverlap(run, spawnSafe, 0.04)) continue;
+        if (wallsCollide(built, run)) continue;
+        built.push(run);
+        return true;
+      }
+      return false;
+    }
+
+    for (let i = 0; i < pairCount; i++) {
+      if (!placeOne("v")) return null;
+      if (!placeOne("h")) return null;
+    }
+    return built.map(({ x, y, w, h }) => ({ x, y, w, h }));
+  }
+
+  function mapIsFullyReachable(layout) {
+    const cols = 28, rows = 18;
+    const blocked = Array.from({ length: rows }, () => Array(cols).fill(false));
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const cx = (x + 0.5) / cols;
+        const cy = (y + 0.5) / rows;
+        for (const w of layout) {
+          const pad = 0.012;
+          if (cx >= w.x - pad && cx <= w.x + w.w + pad &&
+              cy >= w.y - pad && cy <= w.y + w.h + pad) {
+            blocked[y][x] = true;
+            break;
+          }
+        }
+      }
+    }
+
+    const sx = Math.min(cols - 1, Math.max(0, Math.floor(0.08 * cols)));
+    const sy = Math.min(rows - 1, Math.max(0, Math.floor(0.55 * rows)));
+    if (blocked[sy][sx]) return false;
+
+    const seen = Array.from({ length: rows }, () => Array(cols).fill(false));
+    const q = [[sx, sy]];
+    seen[sy][sx] = true;
+    let reached = 0, walkable = 0;
+    while (q.length) {
+      const [x, y] = q.shift();
+      reached++;
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        if (seen[ny][nx] || blocked[ny][nx]) continue;
+        seen[ny][nx] = true;
+        q.push([nx, ny]);
+      }
+    }
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        if (!blocked[y][x]) walkable++;
+      }
+    }
+    return walkable > 0 && reached === walkable;
+  }
+
+  function generateWalls() {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const layout = tryBuildWallLayout();
+      if (!layout) continue;
+      const vCount = layout.filter(w => w.h >= w.w).length;
+      const hCount = layout.filter(w => w.w > w.h).length;
+      if (vCount !== hCount || vCount < 2) continue;
+      if (!mapIsFullyReachable(layout)) continue;
+      walls = layout;
+      return;
+    }
+    walls = [
+      { x: 0.22, y: 0.12, w: 0.048, h: 0.28 },
+      { x: 0.70, y: 0.45, w: 0.048, h: 0.32 },
+      { x: 0.38, y: 0.28, w: 0.28, h: 0.055 },
+      { x: 0.18, y: 0.70, w: 0.30, h: 0.055 }
+    ];
+  }
 
   const assets = {
     player: { up: null, down: null, left: null, right: null },
@@ -55,7 +174,7 @@
     });
   }
 
-  const ASSET_V = "ff13";
+  const ASSET_V = "ff14";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -157,21 +276,76 @@
     healthBox.x = p.x; healthBox.y = p.y; healthBox.active = true;
   }
 
+  function worldIsReachable(extraSolid) {
+    const cols = 28, rows = 18;
+    const blockedGrid = Array.from({ length: rows }, () => Array(cols).fill(false));
+    const r = Math.max(14, Math.min(width, height) * 0.018);
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const cx = ((x + 0.5) / cols) * width;
+        const cy = ((y + 0.5) / rows) * height;
+        if (blocked(cx, cy, r)) {
+          blockedGrid[y][x] = true;
+          continue;
+        }
+        if (extraSolid) {
+          const rect = {
+            x: extraSolid.x - extraSolid.w * 0.38,
+            y: extraSolid.y - extraSolid.h * 0.15,
+            w: extraSolid.w * 0.76,
+            h: extraSolid.h * 0.55
+          };
+          if (circleRectCollision(cx, cy, r, rect)) blockedGrid[y][x] = true;
+        }
+      }
+    }
+    const sx = Math.min(cols - 1, Math.max(0, Math.floor((player.x / width) * cols)));
+    const sy = Math.min(rows - 1, Math.max(0, Math.floor((player.y / height) * rows)));
+    if (blockedGrid[sy][sx]) return false;
+    const seen = Array.from({ length: rows }, () => Array(cols).fill(false));
+    const q = [[sx, sy]];
+    seen[sy][sx] = true;
+    let reached = 0, walkable = 0;
+    while (q.length) {
+      const [x, y] = q.shift();
+      reached++;
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        if (seen[ny][nx] || blockedGrid[ny][nx]) continue;
+        seen[ny][nx] = true;
+        q.push([nx, ny]);
+      }
+    }
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) if (!blockedGrid[y][x]) walkable++;
+    }
+    return walkable > 0 && reached === walkable;
+  }
+
   function placeDecorations() {
+    // Rule 4: only after walls already satisfy 1–3
     decorations = [];
     if (!assets.mapObjects.length) return;
     const pool = assets.mapObjects.slice().sort(() => Math.random() - 0.5);
-    const count = Math.min(12, pool.length);
+    const count = Math.min(10, pool.length);
     for (let i = 0; i < count; i++) {
       const img = pool[i];
-      const p = randomFreePosition(36);
-      const targetH = 52 + Math.random() * 34;
-      const scale = targetH / img.height;
-      decorations.push({
-        img, x: p.x, y: p.y,
-        w: img.width * scale, h: img.height * scale,
-        solid: true
-      });
+      let placed = false;
+      for (let attempt = 0; attempt < 35; attempt++) {
+        const p = randomFreePosition(36);
+        const targetH = 52 + Math.random() * 34;
+        const scale = targetH / img.height;
+        const candidate = {
+          img, x: p.x, y: p.y,
+          w: img.width * scale, h: img.height * scale,
+          solid: true
+        };
+        if (!worldIsReachable(candidate)) continue;
+        decorations.push(candidate);
+        placed = true;
+        break;
+      }
+      if (!placed) continue;
     }
   }
 
@@ -865,8 +1039,10 @@
     enemyBullets = []; taserLines = []; flashes = [];
     gameOver = false; won = false;
     showWinBanner(false);
+    decorations = [];
+    generateWalls();       // rules 1–3
+    placeDecorations();    // rule 4
     createEnemies();
-    placeDecorations();
     placePickup();
     placeHealthBox();
     updateHUD();

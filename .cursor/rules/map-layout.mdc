@@ -1,0 +1,10 @@
+# Map layout rules
+
+When building / changing map generation in `game.js`:
+
+1. Player can reach every walkable spot (flood-fill connectivity).
+2. Each wall run is at least **2 adjacent blocks** — no single gaps bullets can sneak through.
+3. Equal number of **vertical** and **horizontal** wall runs (2+2 is OK).
+4. Place decorations / props only **after** walls already satisfy 1–3; never let props seal a region.
+
+Walls regenerate on each new game (`generateWalls`).
