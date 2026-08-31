@@ -34,7 +34,7 @@
     mapObjects: [],
     ground: null,
     wallH: null, wallV: null, wallBlock: null,
-    taserMagazine: null, medkit: null, muzzle: null, stunAura: null,
+    taserMagazine: null, medkit: null, muzzle: null,
     marker: null
   };
 
@@ -55,7 +55,7 @@
     });
   }
 
-  const ASSET_V = "ff12";
+  const ASSET_V = "ff13";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -88,7 +88,6 @@
       || await loadImage("assets/sprites/taser_magazine.png");
     assets.medkit = await loadImage("assets/sprites/medkit.png");
     assets.muzzle = await loadImage("assets/sprites/vfx/muzzle.png");
-    assets.stunAura = await loadImage("assets/sprites/vfx/stun_aura.png");
     assets.marker = await loadImage("assets/sprites/vfx/enemy_marker.png")
       || await loadImage("assets/sprites/vfx/enemy_marker2.png");
 
@@ -599,11 +598,14 @@
       ctx.drawImage(assets.marker, e.x - mw / 2, e.y - 42, mw, mh);
     }
     if (e.state === "stunned") {
-      if (assets.stunAura) {
-        ctx.globalAlpha = 0.75;
-        drawSpriteCentered(assets.stunAura, e.x, e.y, 70);
-        ctx.globalAlpha = 1;
-      }
+      // Simple cyan stun ring — not the old lightning sprite
+      ctx.save();
+      ctx.strokeStyle = "rgba(0, 229, 255, 0.85)";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, 22 + Math.sin(performance.now() / 80) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
       ctx.fillStyle = "#00e5ff";
       ctx.font = "22px Segoe UI";
       ctx.textAlign = "center";
