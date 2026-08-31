@@ -246,7 +246,7 @@
     return entity.y + 10;
   }
 
-  const ASSET_V = "ff22";
+  const ASSET_V = "ff23";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -523,10 +523,15 @@
   function movePlayer() {
     if (gameOver || won) return;
     let dx = 0, dy = 0;
-    if (held.KeyW || held.ArrowUp) dy--;
-    if (held.KeyS || held.ArrowDown) dy++;
-    if (held.KeyA || held.ArrowLeft) dx--;
-    if (held.KeyD || held.ArrowRight) dx++;
+    if (joy.active && (Math.abs(joy.dx) > 0.12 || Math.abs(joy.dy) > 0.12)) {
+      dx = joy.dx;
+      dy = joy.dy;
+    } else {
+      if (held.KeyW || held.ArrowUp) dy--;
+      if (held.KeyS || held.ArrowDown) dy++;
+      if (held.KeyA || held.ArrowLeft) dx--;
+      if (held.KeyD || held.ArrowRight) dx++;
+    }
     player.moving = !!(dx || dy);
     if (player.moving) player.facing = facingFromDelta(dx, dy);
     moveEntity(player, dx, dy, player.speed, player.footR);
@@ -1146,6 +1151,64 @@
     player.y = py * height;
   });
 
+  const joy = { active: false, dx: 0, dy: 0, pointerId: null };
+
+  function setupJoystick() {
+    const root = document.getElementById("joystick");
+    const base = document.getElementById("joyBase");
+    const knob = document.getElementById("joyKnob");
+    if (!root || !base || !knob) return;
+    const maxR = 38;
+
+    function setKnob(dx, dy) {
+      knob.style.transform = "translate(" + dx + "px," + dy + "px)";
+    }
+
+    function updateFromEvent(e) {
+      const rect = base.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let dx = e.clientX - cx;
+      let dy = e.clientY - cy;
+      const dist = Math.hypot(dx, dy) || 1;
+      if (dist > maxR) {
+        dx = (dx / dist) * maxR;
+        dy = (dy / dist) * maxR;
+      }
+      joy.dx = dx / maxR;
+      joy.dy = dy / maxR;
+      setKnob(dx, dy);
+    }
+
+    function endJoy(e) {
+      if (joy.pointerId != null && e.pointerId !== joy.pointerId) return;
+      joy.active = false;
+      joy.dx = 0;
+      joy.dy = 0;
+      joy.pointerId = null;
+      setKnob(0, 0);
+      try { root.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+
+    root.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      audio.unlock();
+      joy.active = true;
+      joy.pointerId = e.pointerId;
+      try { root.setPointerCapture(e.pointerId); } catch (_) {}
+      updateFromEvent(e);
+    }, { passive: false });
+
+    root.addEventListener("pointermove", e => {
+      if (!joy.active || e.pointerId !== joy.pointerId) return;
+      e.preventDefault();
+      updateFromEvent(e);
+    }, { passive: false });
+
+    root.addEventListener("pointerup", endJoy, { passive: false });
+    root.addEventListener("pointercancel", endJoy, { passive: false });
+  }
+
   addEventListener("keydown", e => {
     audio.unlock();
     held[e.code] = true;
@@ -1156,17 +1219,7 @@
   addEventListener("keyup", e => { held[e.code] = false; });
   addEventListener("pointerdown", () => audio.unlock(), { once: true });
 
-  function bindMove(id, code) {
-    const b = document.getElementById(id);
-    const on = e => { e.preventDefault(); held[code] = true; };
-    const off = e => { e.preventDefault(); held[code] = false; };
-    ["touchstart", "mousedown"].forEach(n => b.addEventListener(n, on, { passive: false }));
-    ["touchend", "touchcancel", "mouseup", "mouseleave"].forEach(n => b.addEventListener(n, off, { passive: false }));
-  }
-  bindMove("up", "KeyW");
-  bindMove("down", "KeyS");
-  bindMove("left", "KeyA");
-  bindMove("right", "KeyD");
+  setupJoystick();
   document.getElementById("taser").addEventListener("click", useTaser);
   document.getElementById("arrest").addEventListener("click", arrestEnemy);
   document.getElementById("reload").addEventListener("click", reloadTaser);

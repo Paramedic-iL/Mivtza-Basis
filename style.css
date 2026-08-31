@@ -72,11 +72,27 @@ canvas#game{display:block;width:100%;height:100%}
 }
 
 #mobile{display:none}
-.mobile{position:absolute;z-index:20;border:0;border-radius:50%;width:58px;height:58px;background:rgba(0,0,0,.66);color:#fff;font-size:22px;touch-action:none}
-#up{left:82px;bottom:135px}#down{left:82px;bottom:20px}#left{left:22px;bottom:77px}#right{left:142px;bottom:77px}
-#taser{right:30px;bottom:75px;width:78px;height:78px;background:#167fe5;font-size:13px;line-height:1.15}
-#arrest{right:38px;bottom:170px;width:68px;height:68px;background:#ffd23f;color:#111;font-size:12px;line-height:1.15}
-#reload{right:122px;bottom:78px;width:68px;height:68px;background:#555;font-size:12px;line-height:1.15}
+.mobile{position:absolute;z-index:20;border:0;border-radius:50%;width:58px;height:58px;background:rgba(0,0,0,.66);color:#fff;font-size:22px;touch-action:none;line-height:1.15}
+#joystick{
+  position:absolute;z-index:20;left:18px;bottom:24px;
+  width:130px;height:130px;touch-action:none;
+}
+#joyBase{
+  width:100%;height:100%;border-radius:50%;
+  background:rgba(0,0,0,.38);border:2px solid rgba(255,255,255,.28);
+  position:relative;
+}
+#joyKnob{
+  position:absolute;left:50%;top:50%;
+  width:54px;height:54px;margin:-27px 0 0 -27px;
+  border-radius:50%;background:rgba(255,255,255,.42);
+  border:2px solid rgba(255,255,255,.55);
+  box-shadow:0 4px 12px rgba(0,0,0,.35);
+  pointer-events:none;
+}
+#taser{right:30px;bottom:75px;width:78px;height:78px;background:#167fe5;font-size:13px}
+#arrest{right:38px;bottom:170px;width:68px;height:68px;background:#ffd23f;color:#111;font-size:12px}
+#reload{right:122px;bottom:78px;width:68px;height:68px;background:#555;font-size:12px}
 
 @media(max-width:900px),(pointer:coarse){
   #mobile{display:block}

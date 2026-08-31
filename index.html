@@ -4,8 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="מבצע בסיס">
+<meta name="theme-color" content="#1a2430">
 <title>מבצע בסיס</title>
-<link rel="stylesheet" href="style.css?v=ff22">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=1">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png?v=1">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png?v=1">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/icons/icon-512.png?v=1">
+<link rel="manifest" href="site.webmanifest?v=1">
+<link rel="stylesheet" href="style.css?v=ff23">
 </head>
 <body>
 <div id="hudTop">
@@ -37,19 +45,18 @@
   <div id="message">טוען...</div>
   <div id="help">
     <b>שליטה</b><br>
-    תנועה: WASD / חצים<br>
-    ⚡ טייזר: Space<br>
-    🤝 מעצר: E<br><br>
+    מחשב: WASD / חצים<br>
+    נייד: ג׳ויסטיק שמאלי<br>
+    ⚡ טייזר · 🤝 מעצר<br><br>
     אחרי כל ירייה — טעינה אוטומטית.<br>
     5 יריות. כשנגמר — מצא מחסנית צהובה.<br>
     תיבה לבנה עם צלב אדום — ממלאת חיים.<br>
     טייזר מנטרל לשנייה. כדור אויב = ‎-10 חיים.
   </div>
   <div id="mobile">
-    <button class="mobile" id="up" type="button">▲</button>
-    <button class="mobile" id="down" type="button">▼</button>
-    <button class="mobile" id="left" type="button">◀</button>
-    <button class="mobile" id="right" type="button">▶</button>
+    <div id="joystick" aria-label="תנועה">
+      <div id="joyBase"><div id="joyKnob"></div></div>
+    </div>
     <button class="mobile" id="taser" type="button">⚡<br>טייזר</button>
     <button class="mobile" id="arrest" type="button">🤝<br>עצור</button>
     <button class="mobile" id="reload" type="button">R<br>טעינה</button>
@@ -64,6 +71,6 @@
   <div id="loseBox">שיט מתתי</div>
 </div>
 
-<script src="game.js?v=ff22"></script>
+<script src="game.js?v=ff23"></script>
 </body>
 </html>
