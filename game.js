@@ -42,6 +42,19 @@
     return walls.map(w => ({ x: w.x * width, y: w.y * height, w: w.w * width, h: w.h * height }));
   }
 
+  // Collision boxes match the visible concrete (sprites are thicker than the thin layout rects)
+  function wallHitboxes() {
+    return pxWalls().map(w => {
+      const horizontal = w.w >= w.h;
+      if (horizontal) {
+        const padY = Math.max(14, w.h * 0.9);
+        return { x: w.x - 4, y: w.y - padY * 0.35, w: w.w + 8, h: w.h + padY };
+      }
+      const padX = Math.max(16, w.w * 1.1);
+      return { x: w.x - padX * 0.5, y: w.y - 4, w: w.w + padX, h: w.h + 8 };
+    });
+  }
+
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -105,10 +118,10 @@
 
   function blocked(x, y, r) {
     if (x < r || y < r || x > width - r || y > height - r) return true;
-    for (const wall of pxWalls()) if (circleRectCollision(x, y, r, wall)) return true;
+    for (const wall of wallHitboxes()) if (circleRectCollision(x, y, r, wall)) return true;
     for (const d of decorations) {
       if (!d.solid) continue;
-      const rect = { x: d.x - d.w * 0.35, y: d.y - d.h * 0.2, w: d.w * 0.7, h: d.h * 0.5 };
+      const rect = { x: d.x - d.w * 0.38, y: d.y - d.h * 0.15, w: d.w * 0.76, h: d.h * 0.55 };
       if (circleRectCollision(x, y, r, rect)) return true;
     }
     return false;
@@ -246,8 +259,19 @@
     const len = Math.hypot(dx, dy);
     if (!len) return;
     const mx = dx / len * speed, my = dy / len * speed;
-    if (!blocked(entity.x + mx, entity.y, r)) entity.x += mx;
-    if (!blocked(entity.x, entity.y + my, r)) entity.y += my;
+    const hitR = r + 4; // slightly fatter so they can't squeeze through walls
+    if (!blocked(entity.x + mx, entity.y, hitR)) entity.x += mx;
+    if (!blocked(entity.x, entity.y + my, hitR)) entity.y += my;
+    // if somehow inside a wall, push out
+    if (blocked(entity.x, entity.y, hitR)) {
+      for (const step of [[8, 0], [-8, 0], [0, 8], [0, -8], [12, 12], [-12, -12], [12, -12], [-12, 12]]) {
+        if (!blocked(entity.x + step[0], entity.y + step[1], hitR)) {
+          entity.x += step[0];
+          entity.y += step[1];
+          break;
+        }
+      }
+    }
   }
 
   function movePlayer() {
@@ -265,7 +289,7 @@
   function lineHitsWall(x1, y1, x2, y2) {
     const d = Math.hypot(x2 - x1, y2 - y1);
     const steps = Math.max(1, Math.ceil(d / 8));
-    const ws = pxWalls();
+    const ws = wallHitboxes();
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t;
@@ -307,7 +331,7 @@
   }
 
   function updateBullets() {
-    const ws = pxWalls();
+    const ws = wallHitboxes();
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
       const b = enemyBullets[i];
       b.x += b.vx; b.y += b.vy; b.life--;
@@ -390,12 +414,13 @@
         score += 100;
         updateHUD();
         setMessage(arrested === enemies.length
-          ? "🏆 כולם נעצרו — המשימה הושלמה!"
+          ? "🏆 כל הכבוד!"
           : "👮 אויב נעצר!");
         if (arrested === enemies.length) {
           won = true;
           score += 500;
           updateHUD();
+          showWinBanner(true);
         }
         return;
       }
@@ -431,6 +456,11 @@
 
   function checkMission() {
     // win happens on last arrest — no map flag zone
+  }
+
+  function showWinBanner(on) {
+    const el = document.getElementById("winBanner");
+    if (el) el.style.display = on ? "flex" : "none";
   }
 
   function setMessage(t) { document.getElementById("message").textContent = t; }
@@ -778,6 +808,7 @@
     score = 0; arrested = 0;
     enemyBullets = []; taserLines = []; flashes = [];
     gameOver = false; won = false;
+    showWinBanner(false);
     createEnemies();
     placeDecorations();
     placePickup();
