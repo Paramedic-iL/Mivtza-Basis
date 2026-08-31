@@ -34,7 +34,7 @@
     mapObjects: [],
     ground: null,
     wallH: null, wallV: null, wallBlock: null,
-    taserMagazine: null, medkit: null, muzzle: null, taserBolt: null, stunAura: null,
+    taserMagazine: null, medkit: null, muzzle: null, stunAura: null,
     marker: null
   };
 
@@ -55,7 +55,7 @@
     });
   }
 
-  const ASSET_V = "ff11";
+  const ASSET_V = "ff12";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
@@ -88,7 +88,6 @@
       || await loadImage("assets/sprites/taser_magazine.png");
     assets.medkit = await loadImage("assets/sprites/medkit.png");
     assets.muzzle = await loadImage("assets/sprites/vfx/muzzle.png");
-    assets.taserBolt = await loadImage("assets/sprites/vfx/taser_bolt.png");
     assets.stunAura = await loadImage("assets/sprites/vfx/stun_aura.png");
     assets.marker = await loadImage("assets/sprites/vfx/enemy_marker.png")
       || await loadImage("assets/sprites/vfx/enemy_marker2.png");
