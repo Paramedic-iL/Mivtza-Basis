@@ -286,7 +286,7 @@
       e.facing = facingFromDelta(player.x - e.x, player.y - e.y);
       if (dPlayer > 90) moveEntity(e, dx, dy, e.speed, e.radius);
       e.shootCooldown--;
-      if (dPlayer < 400 && dPlayer > 70 && e.shootCooldown <= 0 && !lineHitsWall(e.x, e.y, player.x, player.y)) {
+      if (dPlayer < 280 && dPlayer > 70 && e.shootCooldown <= 0 && !lineHitsWall(e.x, e.y, player.x, player.y)) {
         enemyShoot(e);
         e.shootCooldown = 70 + Math.floor(Math.random() * 55);
       }
