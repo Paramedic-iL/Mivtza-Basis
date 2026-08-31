@@ -14,7 +14,8 @@
     "icon_stun": "assets/sprites/icon_stun.png",
     "icon_cuffs": "assets/sprites/icon_cuffs.png",
     "taser_magazine": "assets/sprites/taser_magazine.png",
-    "medkit": "assets/sprites/medkit.png"
+    "medkit": "assets/sprites/medkit.png",
+    "obstacles_sheet": "assets/sprites/obstacles_sheet.png"
   },
   "enemies": [
     "assets/sprites/enemy_0.png",
@@ -74,5 +75,28 @@
     "assets/sprites/auto/obj_048.png",
     "assets/sprites/auto/obj_049.png",
     "assets/sprites/auto/obj_050.png"
+  ],
+  "obstacles": [
+    "assets/sprites/obstacles/obs_00.png",
+    "assets/sprites/obstacles/obs_01.png",
+    "assets/sprites/obstacles/obs_02.png",
+    "assets/sprites/obstacles/obs_03.png",
+    "assets/sprites/obstacles/obs_04.png",
+    "assets/sprites/obstacles/obs_05.png",
+    "assets/sprites/obstacles/obs_06.png",
+    "assets/sprites/obstacles/obs_07.png",
+    "assets/sprites/obstacles/obs_08.png",
+    "assets/sprites/obstacles/obs_09.png",
+    "assets/sprites/obstacles/obs_10.png",
+    "assets/sprites/obstacles/obs_11.png",
+    "assets/sprites/obstacles/obs_12.png",
+    "assets/sprites/obstacles/obs_13.png",
+    "assets/sprites/obstacles/obs_14.png",
+    "assets/sprites/obstacles/obs_15.png",
+    "assets/sprites/obstacles/obs_16.png",
+    "assets/sprites/obstacles/obs_17.png",
+    "assets/sprites/obstacles/obs_18.png",
+    "assets/sprites/obstacles/obs_19.png",
+    "assets/sprites/obstacles/obs_20.png"
   ]
 }

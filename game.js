@@ -88,10 +88,12 @@
     }
 
     assets.mapObjects = [];
-    const objs = (manifest.mapObjects || []).slice(0, 24);
+    const objs = (manifest.obstacles && manifest.obstacles.length)
+      ? manifest.obstacles
+      : (manifest.mapObjects || []).slice(0, 24);
     const loaded = await Promise.all(objs.map(loadImage));
     for (const img of loaded) {
-      if (img && img.width >= 24 && img.height >= 24 && img.width < 220 && img.height < 180) {
+      if (img && img.width >= 24 && img.height >= 24) {
         assets.mapObjects.push(img);
       }
     }
@@ -116,6 +118,11 @@
   function blocked(x, y, r) {
     if (x < r || y < r || x > width - r || y > height - r) return true;
     for (const wall of pxWalls()) if (circleRectCollision(x, y, r, wall)) return true;
+    for (const d of decorations) {
+      if (!d.solid) continue;
+      const rect = { x: d.x - d.w * 0.35, y: d.y - d.h * 0.25, w: d.w * 0.7, h: d.h * 0.55 };
+      if (circleRectCollision(x, y, r, rect)) return true;
+    }
     return false;
   }
 
@@ -143,15 +150,22 @@
   function placeDecorations() {
     decorations = [];
     if (!assets.mapObjects.length) return;
-    const count = Math.min(18, assets.mapObjects.length);
+    const count = Math.min(14, assets.mapObjects.length);
+    const pool = assets.mapObjects.slice();
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
     for (let i = 0; i < count; i++) {
-      const img = assets.mapObjects[Math.floor(Math.random() * assets.mapObjects.length)];
-      const p = randomFreePosition(26);
-      const scale = 0.35 + Math.random() * 0.35;
+      const img = pool[i];
+      const p = randomFreePosition(34);
+      // keep readable size — new cartoon sheet is high-res
+      const targetH = 48 + Math.random() * 36;
+      const scale = targetH / img.height;
       decorations.push({
         img, x: p.x, y: p.y,
         w: img.width * scale, h: img.height * scale,
-        solid: Math.random() < 0.35
+        solid: true
       });
     }
   }
