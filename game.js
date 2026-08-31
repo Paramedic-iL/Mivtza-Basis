@@ -479,15 +479,6 @@
     bolts.textContent = "⚡".repeat(player.ammo) + "·".repeat(Math.max(0, player.maxAmmo - player.ammo));
   }
 
-  function drawShadow(x, y, rx, ry, dark) {
-    ctx.save();
-    ctx.fillStyle = dark ? "rgba(0, 0, 0, 0.62)" : "rgba(28, 48, 22, 0.45)";
-    ctx.beginPath();
-    ctx.ellipse(x, y + ry * 0.35, rx, ry * 0.32, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
   function drawGround() {
     if (assets.ground) {
       const tile = 220;
@@ -512,18 +503,6 @@
     }
 
     const horizontal = w.w >= w.h;
-
-    // black shadow under whole wall
-    ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.72)";
-    ctx.beginPath();
-    if (horizontal) {
-      ctx.ellipse(w.x + w.w / 2 + 3, w.y + w.h + 3, w.w * 0.48, 9, 0, 0, Math.PI * 2);
-    } else {
-      ctx.ellipse(w.x + w.w / 2 + 4, w.y + w.h + 2, Math.max(18, w.w * 1.1), 9, 0, 0, Math.PI * 2);
-    }
-    ctx.fill();
-    ctx.restore();
 
     if (horizontal) {
       const th = Math.max(w.h * 2.0, 42);
@@ -556,14 +535,12 @@
   }
 
   function drawPlayer() {
-    drawShadow(player.x, player.y, 16, 14);
     const img = assets.player[player.facing] || assets.player.down;
     drawSpriteCentered(img, player.x, player.y, 58);
   }
 
   function drawEnemy(e) {
     if (e.state === "arrested") ctx.globalAlpha = 0.45;
-    drawShadow(e.x, e.y, 15, 13);
     const img = assets.enemy[e.facing] || assets.enemy.down;
     drawSpriteCentered(img, e.x, e.y, 52);
     ctx.globalAlpha = 1;
@@ -593,7 +570,6 @@
 
   function drawPickup() {
     if (!pickup.active) return;
-    drawShadow(pickup.x, pickup.y, 18, 12);
     const bob = Math.sin(performance.now() / 280) * 4;
     if (assets.taserMagazine) {
       ctx.save();
@@ -609,7 +585,6 @@
 
   function drawHealthBox() {
     if (!healthBox.active) return;
-    drawShadow(healthBox.x, healthBox.y, 18, 12);
     const bob = Math.sin(performance.now() / 260 + 1.5) * 4;
     if (assets.medkit) {
       ctx.save();
@@ -729,8 +704,6 @@
     for (const it of items) {
       if (it.kind === "wall") drawWallSprite(it.w);
       else if (it.kind === "deco") {
-        // soft grass-colored shadow only (sprite pale shadows already stripped)
-        drawShadow(it.d.x, it.d.y + it.d.h * 0.28, it.d.w * 0.26, it.d.h * 0.16);
         ctx.drawImage(it.d.img, it.d.x - it.d.w / 2, it.d.y - it.d.h / 2, it.d.w, it.d.h);
       } else if (it.kind === "enemy") drawEnemy(it.e);
       else if (it.kind === "pickup") drawPickup();
