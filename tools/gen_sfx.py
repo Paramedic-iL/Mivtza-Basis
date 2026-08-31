@@ -118,10 +118,9 @@ def hurt_sounds():
 
 
 VOICES = {
-    # Hebrew neural voices on Edge
     "cop": "he-IL-AvriNeural",
     "guy": "he-IL-AvriNeural",
-    "fun": "he-IL-HilaNeural",
+    "fun": "he-IL-AvriNeural",  # male only
 }
 
 LINES = [

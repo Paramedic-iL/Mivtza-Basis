@@ -11,7 +11,7 @@
   const held = {};
   let hurtFlashUntil = 0;
 
-  const SFX_V = "1";
+  const SFX_V = "2";
   const audio = {
     unlocked: false,
     cache: {},
@@ -237,7 +237,7 @@
     return entity.y + 10;
   }
 
-  const ASSET_V = "ff16";
+  const ASSET_V = "ff17";
   function loadImage(src) {
     return new Promise(resolve => {
       const img = new Image();
